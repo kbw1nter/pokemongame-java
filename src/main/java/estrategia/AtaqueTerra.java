@@ -3,12 +3,11 @@ package estrategia;
 import modelo.Pokemon;
 import java.util.Random;
 
-public class AtaqueAgua implements IAtaque {
+public class AtaqueTerra implements IAtaque {
     @Override
     public int calcularDano(Pokemon atacante, Pokemon defensor) {
-        // pokemon de água tem dano reduzido contra tipo Floresta
-        double fatorTipo = defensor.getTipo().equals("Floresta") ? 0.5 : 1.0;
+        // por enquanto ataque padrão
         int danoBase = (atacante.getForca() + new Random().nextInt(atacante.getNivel() + 1));
-        return (int) (danoBase * fatorTipo);
+        return danoBase;
     }
 }

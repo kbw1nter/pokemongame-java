@@ -2,7 +2,6 @@ package modelo;
 
 import estrategia.IAtaque;
 
-// classe abstrata que representa um pokemon, metodos e atributos comuns a todos tipo sde pokemon
 public abstract class Pokemon {
     protected String nome;
     protected String tipo;
@@ -11,14 +10,14 @@ public abstract class Pokemon {
     protected int energia;
     protected int experiencia;
     protected boolean selvagem;
-    protected IAtaque estrategiaAtaque; // Padrão Strategy
+    protected IAtaque estrategiaAtaque;
 
     public Pokemon(String nome, String tipo, int nivel, int forca, IAtaque estrategia) {
         this.nome = nome;
         this.tipo = tipo;
         this.nivel = nivel;
         this.forca = forca;
-        this.energia = 100; // Energia inicial
+        this.energia = 100;
         this.experiencia = 0;
         this.selvagem = true;
         this.estrategiaAtaque = estrategia;
@@ -37,14 +36,40 @@ public abstract class Pokemon {
         }
     }
 
-    public void ganharExperiencia(int pontos) {
-        this.experiencia += pontos;
-        // Lógica para avançar de nível pode ser adicionada aqui
+    public void restaurarEnergia() {
+        this.energia = 100;
     }
 
-    // Getters e Setters
-    public String getNome() { return nome; }
-    public String getTipo() { return tipo; }
-    public int getEnergia() { return energia; }
-    public boolean estaNocauteado() { return this.energia <= 0; }
+    public void ganharExperiencia(int pontos) {
+        this.experiencia += pontos;
+    }
+
+    public void setSelvagem(boolean selvagem) {
+        this.selvagem = selvagem;
+    }
+
+    // getters
+    public String getNome() {
+        return nome;
+    }
+
+    public String getTipo() {
+        return tipo;
+    }
+
+    public int getEnergia() {
+        return energia;
+    }
+
+    public boolean estaNocauteado() {
+        return this.energia <= 0;
+    }
+
+    public int getForca() {
+        return forca;
+    }
+
+    public int getNivel() {
+        return nivel;
+    }
 }

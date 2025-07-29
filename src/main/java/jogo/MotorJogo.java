@@ -1,83 +1,176 @@
 package jogo;
 
-import modelo.Treinador;
+import modelo.Celula;
 import modelo.Pokemon;
+import modelo.Treinador;
 import utils.PokemonFactory;
+import javax.swing.SwingUtilities;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MotorJogo extends Observado {
+    public static final int TAMANHO_GRID = 8;
+
+    private Celula[][] tabuleiro;
     private Treinador jogador;
     private Treinador computador;
-    private ExecutorService executorComputador; // para jogada do computador
+    private ExecutorService executorComputador;
+    private final Random random = new Random();
 
     public MotorJogo() {
         this.executorComputador = Executors.newSingleThreadExecutor();
+        this.tabuleiro = new Celula[TAMANHO_GRID][TAMANHO_GRID];
+        for (int i = 0; i < TAMANHO_GRID; i++) {
+            for (int j = 0; j < TAMANHO_GRID; j++) {
+                tabuleiro[i][j] = new Celula(i, j);
+            }
+        }
     }
 
     public void iniciarNovoJogo() {
+        limparTabuleiro();
         jogador = new Treinador("Jogador");
         computador = new Treinador("Computador");
 
-        // Aaiciona um pokemon inicial para cada treinador
         jogador.capturarPokemon(PokemonFactory.criarPokemon("elétrico", "Pikachu", 5, 12));
         computador.capturarPokemon(PokemonFactory.criarPokemon("água", "Squirtle", 5, 10));
+
+        posicionarPokemonsSelvagens();
 
         notificarObservadores("JOGO_INICIADO", null);
         atualizarStatus();
     }
 
+    private void limparTabuleiro() {
+        for (int i = 0; i < TAMANHO_GRID; i++) {
+            for (int j = 0; j < TAMANHO_GRID; j++) {
+                tabuleiro[i][j].esvaziar();
+            }
+        }
+    }
+
+    private void posicionarPokemonsSelvagens() {
+        List<Pokemon> selvagens = new ArrayList<>();
+        selvagens.add(PokemonFactory.criarPokemon("terra", "Sandshrew", 3, 8));
+        selvagens.add(PokemonFactory.criarPokemon("floresta", "Caterpie", 2, 5));
+        selvagens.add(PokemonFactory.criarPokemon("água", "Magikarp", 1, 2));
+        selvagens.add(PokemonFactory.criarPokemon("elétrico", "Voltorb", 4, 8));
+
+        for (Pokemon p : selvagens) {
+            boolean posicionado = false;
+            while (!posicionado) {
+                int x = random.nextInt(TAMANHO_GRID);
+                int y = random.nextInt(TAMANHO_GRID);
+                if (tabuleiro[x][y].estaVazia() && ehRegiaoValida(p.getTipo(), x, y)) {
+                    tabuleiro[x][y].setPokemon(p);
+                    posicionado = true;
+                }
+            }
+        }
+    }
+
+    private boolean ehRegiaoValida(String tipo, int x, int y) {
+        int meio = TAMANHO_GRID / 2;
+        switch (tipo.toLowerCase()) {
+            case "água": return x < meio && y < meio;
+            case "floresta": return x < meio && y >= meio;
+            case "terra": return x >= meio && y < meio;
+            case "elétrico": return x >= meio && y >= meio;
+            default: return false;
+        }
+    }
+
     public void realizarJogadaJogador(int x, int y) {
-        // lógica da jogada do jogador (ex: procurar pokémon na célula x,y)
-        System.out.println("Jogador clicou na célula: " + x + ", " + y);
-        notificarObservadores("MENSAGEM", "Você procurou por um Pokémon...");
+        Celula celulaClicada = tabuleiro[x][y];
+        notificarObservadores("CELULA_REVELADA", celulaClicada);
 
-        // simula uma batalha se encontrar algo
-        batalhar();
+        if (celulaClicada.estaVazia()) {
+            notificarObservadores("MENSAGEM", "A célula está vazia. Nada aconteceu.");
+        } else {
+            Pokemon pokemonEncontrado = celulaClicada.getPokemon();
+            notificarObservadores("MENSAGEM", "Você encontrou um " + pokemonEncontrado.getNome() + " selvagem!");
 
-        // após a jogada do jogador, aciona a jogada do computador
+            boolean capturou = random.nextBoolean();
+            if (capturou) {
+                notificarObservadores("MENSAGEM", "Você capturou o " + pokemonEncontrado.getNome() + "!");
+                jogador.capturarPokemon(pokemonEncontrado);
+                celulaClicada.esvaziar();
+            } else {
+                moverPokemonParaOutraCelula(pokemonEncontrado, celulaClicada);
+            }
+        }
+
+        atualizarStatus();
+
         if (!jogoTerminou()) {
             realizarJogadaComputador();
+        } else {
+            verificarFimDeJogo();
+        }
+    }
+
+    private void moverPokemonParaOutraCelula(Pokemon pokemon, Celula origem) {
+        origem.esvaziar();
+        List<Celula> celulasVaziasValidas = new ArrayList<>();
+        for (int i = 0; i < TAMANHO_GRID; i++) {
+            for (int j = 0; j < TAMANHO_GRID; j++) {
+                if (tabuleiro[i][j].estaVazia() && ehRegiaoValida(pokemon.getTipo(), i, j)) {
+                    celulasVaziasValidas.add(tabuleiro[i][j]);
+                }
+            }
+        }
+        if (!celulasVaziasValidas.isEmpty()) {
+            Celula novaCelula = celulasVaziasValidas.get(random.nextInt(celulasVaziasValidas.size()));
+            novaCelula.setPokemon(pokemon);
+            notificarObservadores("MENSAGEM", "O " + pokemon.getNome() + " fugiu para outro local!");
+        } else {
+            notificarObservadores("MENSAGEM", "O " + pokemon.getNome() + " fugiu e não foi mais visto!");
         }
     }
 
     private void realizarJogadaComputador() {
         executorComputador.submit(() -> {
             try {
-                notificarObservadores("MENSAGEM", "Computador está pensando...");
-                Thread.sleep(2000); // simula o "tempo de pensar"
-
-                // lógica da jogada do computador
-                System.out.println("Computador realizou sua jogada.");
-                notificarObservadores("MENSAGEM", "Computador atacou!");
-                batalhar(); // simula a batalha de volta
-
+                notificarObservadores("MENSAGEM", "Computador está se preparando...");
+                Thread.sleep(2500);
+                notificarObservadores("MENSAGEM", "O Computador te desafiou para uma batalha!");
+                SwingUtilities.invokeLater(this::iniciarBatalha);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         });
     }
 
-    private void batalhar() {
+    private void iniciarBatalha() {
         Pokemon pJogador = jogador.getPokemonPrincipal();
         Pokemon pComputador = computador.getPokemonPrincipal();
 
-        if (pJogador != null && pComputador != null) {
+        if (pJogador == null || pComputador == null) return;
+
+        notificarObservadores("MENSAGEM", "\n--- BATALHA INICIADA ---");
+        while (!pJogador.estaNocauteado() && !pComputador.estaNocauteado()) {
             pJogador.atacar(pComputador);
-            if (pComputador.estaNocauteado()) {
-                notificarObservadores("MENSAGEM", "Você venceu a batalha!");
-                jogador.adicionarPontos(100);
-                // lógica para remover o pokemon do computador ou trocar
-            } else {
-                pComputador.atacar(pJogador);
-                if (pJogador.estaNocauteado()) {
-                    notificarObservadores("MENSAGEM", "Você foi derrotado!");
-                    computador.adicionarPontos(100);
-                }
-            }
+            notificarObservadores("MENSAGEM", pJogador.getNome() + " atacou! HP de " + pComputador.getNome() + ": " + pComputador.getEnergia());
+            if (pComputador.estaNocauteado()) break;
+            pComputador.atacar(pJogador);
+            notificarObservadores("MENSAGEM", pComputador.getNome() + " atacou! HP de " + pJogador.getNome() + ": " + pJogador.getEnergia());
         }
+
+        if (pJogador.estaNocauteado()) {
+            notificarObservadores("MENSAGEM", computador.getNome() + " venceu a batalha!");
+            computador.adicionarPontos(100);
+        } else {
+            notificarObservadores("MENSAGEM", jogador.getNome() + " venceu a batalha!");
+            jogador.adicionarPontos(100);
+        }
+        pJogador.restaurarEnergia();
+        pComputador.restaurarEnergia();
+        notificarObservadores("MENSAGEM", "Energia dos Pokémons restaurada.");
+        notificarObservadores("MENSAGEM", "--- FIM DA BATALHA ---\n");
         atualizarStatus();
-        verificarFimDeJogo();
     }
 
     private void atualizarStatus() {
@@ -85,8 +178,12 @@ public class MotorJogo extends Observado {
     }
 
     private boolean jogoTerminou() {
-        // condição de término (ex: um dos treinadores não tem mais pokémons)
-        return jogador.getTime().isEmpty() || computador.getTime().stream().allMatch(Pokemon::estaNocauteado);
+        for (int i = 0; i < TAMANHO_GRID; i++) {
+            for (int j = 0; j < TAMANHO_GRID; j++) {
+                if (!tabuleiro[i][j].estaVazia()) return false;
+            }
+        }
+        return true;
     }
 
     private void verificarFimDeJogo() {

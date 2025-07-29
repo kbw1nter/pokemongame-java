@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Treinador {
-    private String nome;
-    private List<Pokemon> time;
+    private final String nome;
+    private final List<Pokemon> time;
     private int pontuacao;
 
     public Treinador(String nome) {
@@ -24,7 +24,7 @@ public class Treinador {
         if (time.isEmpty()) {
             return null;
         }
-        return time.get(0); // Retorna o primeiro Pokémon do time
+        return time.getFirst(); // retorna o primeiro Pokémon do time
     }
 
     public void adicionarPontos(int pontos) {
@@ -32,7 +32,13 @@ public class Treinador {
     }
 
     // getters
-    public String getNome() { return nome; }
-    public List<Pokemon> getTime() { return time; }
-    public int getPontuacao() { return pontuacao; }
+    public String getNome() {
+        return nome;
+    }
+    public List<Pokemon> getTime() {
+        return time;
+    }
+    public int getPontuacao() {
+        return pontuacao;
+    }
 }

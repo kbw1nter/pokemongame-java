@@ -1,21 +1,15 @@
 package utils;
 
 import modelo.*;
-import estrategia.*;
 
 public class PokemonFactory {
     public static Pokemon criarPokemon(String tipo, String nome, int nivel, int forca) {
-        switch (tipo.toLowerCase()) {
-            case "água":
-                return new Pokemon("Água", nome, nivel, forca, new AtaqueAgua());
-            case "floresta":
-                return new Pokemon("Floresta", nome, nivel, forca, new AtaqueFloresta());
-            case "terra":
-                return new Pokemon("Terra", nome, nivel, forca, new AtaqueTerra());
-            case "elétrico":
-                return new Pokemon("Elétrico", nome, nivel, forca, new AtaqueEletrico());
-            default:
-                throw new IllegalArgumentException("Tipo de Pokémon desconhecido: " + tipo);
-        }
+        return switch (tipo.toLowerCase()) {
+            case "água" -> new PokemonAgua(nome, nivel, forca);
+            case "floresta" -> new PokemonFloresta(nome, nivel, forca);
+            case "terra" -> new PokemonTerra(nome, nivel, forca);
+            case "elétrico" -> new PokemonEletrico(nome, nivel, forca);
+            default -> throw new IllegalArgumentException("Tipo de Pokémon desconhecido: " + tipo);
+        };
     }
 }
