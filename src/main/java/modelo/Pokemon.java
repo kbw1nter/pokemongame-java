@@ -1,8 +1,11 @@
 package modelo;
 
 import estrategia.IAtaque;
+import java.io.Serializable;
 
-public abstract class Pokemon {
+public abstract class Pokemon implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     protected String nome;
     protected String tipo;
     protected int nivel;
@@ -51,6 +54,10 @@ public abstract class Pokemon {
     // getters
     public String getNome() {
         return nome;
+    }
+
+    public boolean isSelvagem() {
+        return selvagem;
     }
 
     public String getTipo() {

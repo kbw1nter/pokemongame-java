@@ -1,9 +1,12 @@
 package modelo;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Treinador {
+public class Treinador implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private final String nome;
     private final List<Pokemon> time;
     private int pontuacao;
@@ -24,7 +27,7 @@ public class Treinador {
         if (time.isEmpty()) {
             return null;
         }
-        return time.getFirst(); // retorna o primeiro Pokémon do time
+        return time.getFirst(); // retorna o primeiro pokemon do time
     }
 
     public void adicionarPontos(int pontos) {

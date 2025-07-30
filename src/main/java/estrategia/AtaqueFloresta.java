@@ -1,9 +1,11 @@
 package estrategia;
 
+import java.io.Serializable;
 import modelo.Pokemon;
 import java.util.Random;
 
-public class AtaqueFloresta implements IAtaque {
+public class AtaqueFloresta implements IAtaque, Serializable {
+    private static final long serialVersionUID = 1L;
     @Override
     public int calcularDano(Pokemon atacante, Pokemon defensor) {
         // habilidade de regeneração, cura parte do dano ao atacar
