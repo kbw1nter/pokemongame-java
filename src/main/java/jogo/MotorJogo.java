@@ -57,7 +57,7 @@ public class MotorJogo extends Observado {
 
             if (tabuleiro[x][y].estaVazia()) {
                 String tipo = determinarTipoPorRegiao(x, y);
-                Pokemon selvagem = PokemonFactory.criarPokemon(tipo, tipo + "mon" + k, 5, 15);
+                Pokemon selvagem = PokemonFactory.criarPokemonSelvagem(tipo, 5, 15);
                 selvagem.setSelvagem(true);
                 tabuleiro[x][y].setPokemon(selvagem);
             } else {

@@ -199,7 +199,7 @@ public class JanelaPrincipal extends JFrame implements Observador {
                             Celula celulaCarregada = tabuleiroCarregado[i][j];
                             if (!celulaCarregada.estaVazia()) {
                                 // Se a célula tiver um Pokémon, tenta carregar o ícone
-                                String nomeIcone = "/resources/" + celulaCarregada.getPokemon().getNome().toLowerCase() + ".png";
+                                nomeIcone = "/resources/" + celulaCarregada.getPokemon().getNome().toLowerCase() + ".png";
                                 try {
                                     ImageIcon icon = new ImageIcon(getClass().getResource(nomeIcone));
                                     Image img = icon.getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);

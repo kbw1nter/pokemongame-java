@@ -1,5 +1,7 @@
 package jogo;
 
+import estrategia.AtaqueAgua;
+import estrategia.AtaqueFloresta;
 import modelo.Pokemon;
 import modelo.PokemonAgua;
 import modelo.PokemonFloresta;
@@ -12,8 +14,8 @@ public class Jogo {
         Treinador computador = new Treinador("Gary");
 
         // criação de pokemons
-        Pokemon p1 = new PokemonAgua("Squirtle", 5, 12);
-        Pokemon p2 = new PokemonFloresta("Bulbasaur", 5, 11);
+        Pokemon p1 = new PokemonAgua("Squirtle", 5, 12, new AtaqueAgua());
+        Pokemon p2 = new PokemonFloresta("Bulbasaur", 5, 11, new AtaqueFloresta());
 
         jogador.capturarPokemon(p1);
         computador.capturarPokemon(p2);
