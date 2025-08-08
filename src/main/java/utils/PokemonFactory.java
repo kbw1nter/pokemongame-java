@@ -1,15 +1,11 @@
 package utils;
 
-import estrategia.AtaqueAgua;
-import estrategia.AtaqueEletrico;
-import estrategia.AtaqueFloresta;
-import estrategia.AtaqueTerra;
 import modelo.*;
-
+import estrategia.*;
 import java.util.Random;
-import java.util.random.*;
 
 public class PokemonFactory {
+
     public static Pokemon criarPokemon(String tipo, String nome, int nivel, int forca) {
         return switch (tipo.toLowerCase()) {
             case "água" -> new PokemonAgua(nome, nivel, forca, new AtaqueAgua());
@@ -20,28 +16,32 @@ public class PokemonFactory {
         };
     }
 
+    //Para criar Pokémons selvagens com nomes aleatórios do tipo
     public static Pokemon criarPokemonSelvagem(String tipo, int nivel, int forca) {
         Random random = new Random();
         String nomePokemon;
+
         switch (tipo.toLowerCase()) {
             case "água":
                 String[] nomesAgua = {"Squirtle", "Psyduck", "Magikarp"};
                 nomePokemon = nomesAgua[random.nextInt(nomesAgua.length)];
-                return criarPokemon(tipo, nomePokemon, nivel, forca);
+                break;
             case "floresta":
                 String[] nomesFloresta = {"Bulbasaur", "Oddish", "Bellsprout"};
                 nomePokemon = nomesFloresta[random.nextInt(nomesFloresta.length)];
-                return criarPokemon(tipo, nomePokemon, nivel, forca);
+                break;
             case "terra":
                 String[] nomesTerra = {"Sandshrew", "Diglett", "Geodude"};
                 nomePokemon = nomesTerra[random.nextInt(nomesTerra.length)];
-                return criarPokemon(tipo, nomePokemon, nivel, forca);
+                break;
             case "elétrico":
                 String[] nomesEletrico = {"Pikachu", "Jolteon", "Magnemite"};
                 nomePokemon = nomesEletrico[random.nextInt(nomesEletrico.length)];
-                return criarPokemon(tipo, nomePokemon, nivel, forca);
+                break;
             default:
                 throw new IllegalArgumentException("Tipo de Pokémon selvagem desconhecido: " + tipo);
         }
+        // Chama o método original para criar o Pokémon com a estratégia correta
+        return criarPokemon(tipo, nomePokemon, nivel, forca);
     }
 }

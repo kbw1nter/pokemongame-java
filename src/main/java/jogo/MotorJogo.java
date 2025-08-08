@@ -49,7 +49,7 @@ public class MotorJogo extends Observado {
 
     private void distribuirPokemonsSelvagens() {
         Random random = new Random();
-        int numPokemonsSelvagens = TAMANHO_GRID * TAMANHO_GRID / 4; // 16 Pokémons para um grid 8x8
+        int numPokemonsSelvagens = TAMANHO_GRID * TAMANHO_GRID / 4; // Ex: 16 Pokémons para um grid 8x8
 
         for (int k = 0; k < numPokemonsSelvagens; k++) {
             int x = random.nextInt(TAMANHO_GRID);
@@ -57,11 +57,12 @@ public class MotorJogo extends Observado {
 
             if (tabuleiro[x][y].estaVazia()) {
                 String tipo = determinarTipoPorRegiao(x, y);
+                // Mude esta linha para usar o novo método da Factory
                 Pokemon selvagem = PokemonFactory.criarPokemonSelvagem(tipo, 5, 15);
                 selvagem.setSelvagem(true);
                 tabuleiro[x][y].setPokemon(selvagem);
             } else {
-                k--; // tenta novamente se a célula já estiver ocupada
+                k--; // Tenta novamente se a célula já estiver ocupada
             }
         }
     }

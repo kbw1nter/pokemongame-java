@@ -56,10 +56,6 @@ public abstract class Pokemon implements Serializable {
         return nome;
     }
 
-    public boolean isSelvagem() {
-        return selvagem;
-    }
-
     public String getTipo() {
         return tipo;
     }
@@ -78,5 +74,10 @@ public abstract class Pokemon implements Serializable {
 
     public int getNivel() {
         return nivel;
+    }
+
+    // NOVO: Método isSelvagem() para verificar se o Pokémon é selvagem
+    public boolean isSelvagem() {
+        return selvagem;
     }
 }

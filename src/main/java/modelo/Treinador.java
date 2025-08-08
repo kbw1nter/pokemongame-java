@@ -27,7 +27,7 @@ public class Treinador implements Serializable {
         if (time.isEmpty()) {
             return null;
         }
-        return time.getFirst(); // retorna o primeiro pokemon do time
+        return time.getFirst(); // retorna o primeiro Pokémon do time
     }
 
     public void adicionarPontos(int pontos) {
