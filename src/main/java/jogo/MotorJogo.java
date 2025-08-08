@@ -1,8 +1,8 @@
 package jogo;
 
-import utils.PokemonFactory;
 import modelo.*;
 import ui.Observador;
+import utils.PokemonFactory; // ADICIONADO
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,7 +16,7 @@ public class MotorJogo extends Observado {
     private Treinador jogador;
     private Treinador computador;
     private Celula[][] tabuleiro;
-    private ExecutorService executorComputador; // Para a jogada do computador em outra thread
+    private final ExecutorService executorComputador; // Adicionado final
 
     public MotorJogo() {
         this.executorComputador = Executors.newSingleThreadExecutor();
@@ -28,6 +28,7 @@ public class MotorJogo extends Observado {
         tabuleiro = new Celula[TAMANHO_GRID][TAMANHO_GRID];
         inicializarTabuleiro();
         distribuirPokemonsIniciais();
+        distribuirPokemonsSelvagens(); // Chamada para distribuir Pokémons selvagens
         atualizarStatus();
         notificarObservadores("MENSAGEM", "Novo jogo iniciado!");
     }
@@ -38,18 +39,21 @@ public class MotorJogo extends Observado {
                 tabuleiro[i][j] = new Celula(i, j);
             }
         }
-        distribuirPokemonsSelvagens();
     }
 
     private void distribuirPokemonsIniciais() {
-        //Pikachu para o jogador e um Squirtle para o computador
-        jogador.capturarPokemon(PokemonFactory.criarPokemon("Elétrico", "Pikachu", 10, 20));
-        computador.capturarPokemon(PokemonFactory.criarPokemon("Água", "Squirtle", 10, 20));
+        // Jogador
+        Pokemon pikachu = PokemonFactory.criarPokemon("Elétrico", "Pikachu", 10, 20);
+        jogador.capturarPokemon(pikachu);
+
+        // Computador
+        Pokemon squirtle = PokemonFactory.criarPokemon("Água", "Squirtle", 10, 20);
+        computador.capturarPokemon(squirtle);
     }
 
     private void distribuirPokemonsSelvagens() {
         Random random = new Random();
-        int numPokemonsSelvagens = TAMANHO_GRID * TAMANHO_GRID / 4; // Ex: 16 Pokémons para um grid 8x8
+        int numPokemonsSelvagens = TAMANHO_GRID * TAMANHO_GRID / 4;
 
         for (int k = 0; k < numPokemonsSelvagens; k++) {
             int x = random.nextInt(TAMANHO_GRID);
@@ -57,12 +61,11 @@ public class MotorJogo extends Observado {
 
             if (tabuleiro[x][y].estaVazia()) {
                 String tipo = determinarTipoPorRegiao(x, y);
-                // Mude esta linha para usar o novo método da Factory
                 Pokemon selvagem = PokemonFactory.criarPokemonSelvagem(tipo, 5, 15);
                 selvagem.setSelvagem(true);
                 tabuleiro[x][y].setPokemon(selvagem);
             } else {
-                k--; // Tenta novamente se a célula já estiver ocupada
+                k--;
             }
         }
     }
@@ -91,8 +94,9 @@ public class MotorJogo extends Observado {
                 notificarObservadores("MENSAGEM", "Você encontrou um Pokémon selvagem: " + pokemonNaCelula.getNome() + "!");
                 notificarObservadores("POKEMON_ENCONTRADO", new int[]{x, y});
 
-                // Lógica de captura
-                if (new Random().nextBoolean()) { // 50% de chance de capturar
+                // Lógica de captura (simplificada para o exemplo)
+                Random rand = new Random();
+                if (rand.nextDouble() < 0.7) { // 70% de chance de capturar
                     jogador.capturarPokemon(pokemonNaCelula);
                     celulaClicada.esvaziar(); // Remove o Pokémon da célula
                     notificarObservadores("MENSAGEM", jogador.getNome() + " capturou " + pokemonNaCelula.getNome() + "!");
@@ -109,18 +113,23 @@ public class MotorJogo extends Observado {
     }
 
     private void moverPokemonQueEscapou(Pokemon pokemon, int oldX, int oldY) {
-        tabuleiro[oldX][oldY].esvaziar(); // Remove da posição antiga
-        notificarObservadores("POKEMON_ESCAPOU_MOVER", new int[]{oldX, oldY}); // Notifica a UI para limpar o botão
-
         Random random = new Random();
         int newX, newY;
+        int tentativas = 0;
         do {
             newX = random.nextInt(TAMANHO_GRID);
             newY = random.nextInt(TAMANHO_GRID);
-        } while (!tabuleiro[newX][newY].estaVazia()); // Encontra uma nova célula vazia
+            tentativas++;
+            if (tentativas > 100) { // Evita loop infinito em tabuleiro cheio
+                notificarObservadores("MENSAGEM", pokemon.getNome() + " não conseguiu se mover para outro lugar.");
+                return;
+            }
+        } while (!tabuleiro[newX][newY].estaVazia());
 
-        tabuleiro[newX][newY].setPokemon(pokemon); // Coloca o Pokémon na nova posição
+        tabuleiro[newX][newY].setPokemon(pokemon);
         notificarObservadores("MENSAGEM", pokemon.getNome() + " moveu-se para (" + newX + ", " + newY + ").");
+        // Notifica a UI para limpar a célula antiga, se necessário
+        notificarObservadores("CELULA_ATUALIZADA", new int[]{oldX, oldY});
     }
 
     private void iniciarBatalha(Treinador t1, Treinador t2) {
@@ -129,75 +138,66 @@ public class MotorJogo extends Observado {
         Pokemon p2 = t2.getPokemonPrincipal();
 
         if (p1 == null || p2 == null) {
-            notificarObservadores("MENSAGEM", "Um dos treinadores não tem Pokémon para batalhar!");
+            notificarObservadores("MENSAGEM", "Um dos treinadores não tem Pokémon para batalhar.");
             return;
         }
 
-        notificarObservadores("MENSAGEM", t1.getNome() + " vs " + t2.getNome() + "! " + p1.getNome() + " (HP: " + p1.getEnergia() + ") vs " + p2.getNome() + " (HP: " + p2.getEnergia() + ")");
-
-        // Loop de batalha
         while (!p1.estaNocauteado() && !p2.estaNocauteado()) {
-            p1.atacar(p2);
-            if (p2.estaNocauteado()) break;
-            p2.atacar(p1);
+            // Turno do P1
+            if (!p1.estaNocauteado()) {
+                p1.atacar(p2);
+            }
+            // Turno do P2
+            if (!p2.estaNocauteado()) {
+                p2.atacar(p1);
+            }
         }
 
-        String vencedorBatalha;
-        if (p1.estaNocauteado()) {
-            vencedorBatalha = t2.getNome();
-            t2.adicionarPontos(100);
+        String vencedor = "Ninguém";
+        if (p1.estaNocauteado() && p2.estaNocauteado()) {
+            notificarObservadores("MENSAGEM", "Ambos os Pokémons foram nocauteados! Empate.");
+        } else if (p1.estaNocauteado()) {
+            vencedor = t2.getNome();
+            notificarObservadores("MENSAGEM", t2.getNome() + " venceu a batalha!");
         } else {
-            vencedorBatalha = t1.getNome();
-            t1.adicionarPontos(100);
+            vencedor = t1.getNome();
+            notificarObservadores("MENSAGEM", t1.getNome() + " venceu a batalha!");
         }
 
-        notificarObservadores("MENSAGEM", vencedorBatalha + " venceu a batalha!");
         p1.restaurarEnergia();
         p2.restaurarEnergia();
         notificarObservadores("MENSAGEM", "Energia dos Pokémons restaurada.");
         notificarObservadores("MENSAGEM", "--- FIM DA BATALHA ---");
+
+        // Lógica de pontuação pós-batalha (exemplo)
+        if (vencedor.equals(t1.getNome())) {
+            t1.adicionarPontos(50);
+        } else if (vencedor.equals(t2.getNome())) {
+            t2.adicionarPontos(50);
+        }
         atualizarStatus();
 
-        // lógica para a jogada do computador após a batalha
-        executorComputador.submit(() -> {
-            try {
-                Thread.sleep(2000); // simula o tempo de "pensamento" do computador
-                notificarObservadores("MENSAGEM", "Computador está se preparando...");
-                // Aqui da pra adicionar a lógica de jogada do computador, tipo fazer ele clicar em uma celula aleatória
-                Random rand = new Random();
-                int compX = rand.nextInt(TAMANHO_GRID);
-                int compY = rand.nextInt(TAMANHO_GRID);
-                notificarObservadores("MENSAGEM", "O Computador te desafiou para uma batalha!"); // Simula a batalha de volta
-
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
-    }
-
-    private void atualizarStatus() {
-        String statusJogador = String.format("Jogador: %d pts | Pokémon: %s (HP: %d)",
-                jogador.getPontuacao(),
-                jogador.getPokemonPrincipal() != null ? jogador.getPokemonPrincipal().getNome() : "Nenhum",
-                jogador.getPokemonPrincipal() != null ? jogador.getPokemonPrincipal().getEnergia() : 0);
-
-        String statusComputador = String.format("Computador: %d pts | Pokémon: %s (HP: %d)",
-                computador.getPontuacao(),
-                computador.getPokemonPrincipal() != null ? computador.getPokemonPrincipal().getNome() : "Nenhum",
-                computador.getPokemonPrincipal() != null ? computador.getPokemonPrincipal().getEnergia() : 0);
-
-        notificarObservadores("STATUS_JOGADOR", statusJogador);
-        notificarObservadores("STATUS_COMPUTADOR", statusComputador);
-
-        // verifica condição de fim de jogo
-        if (jogador.getTime().isEmpty() || computador.getTime().isEmpty()) {
-            String vencedor = jogador.getTime().isEmpty() ? computador.getNome() : jogador.getNome();
+        // Verifica condição de fim de jogo (exemplo: se um treinador ficou sem Pokémons)
+        if (t1.getTime().isEmpty() || t2.getTime().isEmpty()) {
+            vencedor = t1.getTime().isEmpty() ? t2.getNome() : t1.getNome();
             notificarObservadores("FIM_DE_JOGO", "O vencedor é: " + vencedor);
             executorComputador.shutdown();
         }
     }
 
-    // métodos de persistência (salvar/carregar)
+    private void atualizarStatus() {
+        String statusJogador = "Jogador: " + jogador.getPontuacao() + " pts | Pokémon: ";
+        if (jogador.getPokemonPrincipal() != null) {
+            statusJogador += jogador.getPokemonPrincipal().getNome() + " (HP: " + jogador.getPokemonPrincipal().getEnergia() + ")";
+        }
+
+        String statusComputador = "Computador: " + computador.getPontuacao() + " pts | Pokémon: ";
+        if (computador.getPokemonPrincipal() != null) {
+            statusComputador += computador.getPokemonPrincipal().getNome() + " (HP: " + computador.getPokemonPrincipal().getEnergia() + ")";
+        }
+        notificarObservadores("STATUS_ATUALIZADO", new String[]{statusJogador, statusComputador});
+    }
+
     public void salvarJogo(String caminhoArquivo) {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(caminhoArquivo))) {
             oos.writeObject(this.jogador);
@@ -224,7 +224,6 @@ public class MotorJogo extends Observado {
         }
     }
 
-    // getter para o tabuleiro (necessário para JanelaPrincipal)
     public Celula[][] getTabuleiro() {
         return tabuleiro;
     }

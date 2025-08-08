@@ -76,7 +76,6 @@ public abstract class Pokemon implements Serializable {
         return nivel;
     }
 
-    // NOVO: Método isSelvagem() para verificar se o Pokémon é selvagem
     public boolean isSelvagem() {
         return selvagem;
     }

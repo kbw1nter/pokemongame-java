@@ -1,7 +1,7 @@
 package estrategia;
 
-import java.io.Serializable;
 import modelo.Pokemon;
+import java.io.Serializable;
 import java.util.Random;
 
 public class AtaqueEletrico implements IAtaque, Serializable {

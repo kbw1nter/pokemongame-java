@@ -10,6 +10,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.net.URL;
 
 public class JanelaPrincipal extends JFrame implements Observador {
     private MotorJogo motorJogo;
@@ -70,7 +71,7 @@ public class JanelaPrincipal extends JFrame implements Observador {
         painelDireito.add(statusJogadorLabel);
         painelDireito.add(statusComputadorLabel);
 
-        //Botões de Salvar e Carregar
+        // Botões de Salvar e Carregar
         JButton btnSalvar = new JButton("Salvar Jogo");
         btnSalvar.addActionListener(e -> {
             JFileChooser fileChooser = new JFileChooser();
@@ -85,7 +86,7 @@ public class JanelaPrincipal extends JFrame implements Observador {
                 motorJogo.salvarJogo(fileToSave.getAbsolutePath());
             }
         });
-        painelDireito.add(Box.createRigidArea(new Dimension(0, 10))); // Espaçamento
+        painelDireito.add(Box.createRigidArea(new Dimension(0, 10)));
         painelDireito.add(btnSalvar);
 
         JButton btnCarregar = new JButton("Carregar Jogo");
@@ -99,19 +100,18 @@ public class JanelaPrincipal extends JFrame implements Observador {
                 motorJogo.carregarJogo(fileToLoad.getAbsolutePath());
             }
         });
-        painelDireito.add(Box.createRigidArea(new Dimension(0, 5))); // Espaçamento
+        painelDireito.add(Box.createRigidArea(new Dimension(0, 5)));
         painelDireito.add(btnCarregar);
 
         areaLog = new JTextArea(15, 30);
         areaLog.setEditable(false);
         JScrollPane scrollPane = new JScrollPane(areaLog);
-        painelDireito.add(Box.createRigidArea(new Dimension(0, 10))); // Espaçamento
+        painelDireito.add(Box.createRigidArea(new Dimension(0, 10)));
         painelDireito.add(new JLabel("--- LOG ---"));
         painelDireito.add(scrollPane);
 
         add(painelDireito, BorderLayout.EAST);
 
-        // Configurar cores das regiões
         aplicarCoresRegioes();
     }
 
@@ -145,7 +145,7 @@ public class JanelaPrincipal extends JFrame implements Observador {
                     break;
                 case "MENSAGEM":
                     areaLog.append(dados.toString() + "\n");
-                    areaLog.setCaretPosition(areaLog.getDocument().getLength()); // Auto-scroll
+                    areaLog.setCaretPosition(areaLog.getDocument().getLength());
                     break;
                 case "POKEMON_ENCONTRADO":
                     int[] coords = (int[]) dados;
@@ -157,20 +157,28 @@ public class JanelaPrincipal extends JFrame implements Observador {
 
                     if (pokemonEncontrado != null) {
                         String nomeIcone = "/resources/" + pokemonEncontrado.getNome().toLowerCase() + ".png";
+                        System.out.println("POKEMON_ENCONTRADO: Tentando carregar imagem: " + nomeIcone);
                         try {
-                            ImageIcon icon = new ImageIcon(getClass().getResource(nomeIcone));
-                            Image img = icon.getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
-                            botao.setIcon(new ImageIcon(img));
-                            botao.setEnabled(false);
+                            URL imageUrl = getClass().getResource(nomeIcone);
+                            if (imageUrl != null) {
+                                ImageIcon icon = new ImageIcon(imageUrl);
+                                Image img = icon.getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
+                                botao.setIcon(new ImageIcon(img));
+                                botao.setEnabled(false);
+                            } else {
+                                botao.setText(pokemonEncontrado.getNome().substring(0, Math.min(pokemonEncontrado.getNome().length(), 3)));
+                                System.err.println("POKEMON_ENCONTRADO: Imagem não encontrada para " + pokemonEncontrado.getNome() + ": " + nomeIcone + " (URL nula)");
+                                botao.setEnabled(false);
+                            }
                         } catch (Exception e) {
                             botao.setText(pokemonEncontrado.getNome().substring(0, Math.min(pokemonEncontrado.getNome().length(), 3)));
-                            System.err.println("Imagem não encontrada para " + pokemonEncontrado.getNome() + ": " + nomeIcone);
+                            System.err.println("POKEMON_ENCONTRADO: Erro ao carregar imagem para " + pokemonEncontrado.getNome() + ": " + nomeIcone + ". Erro: " + e.getMessage());
                             botao.setEnabled(false);
                         }
                     } else {
-                        botao.setText(""); // Limpa o texto do botão
-                        botao.setIcon(null); // Remove qualquer ícone
-                        botao.setEnabled(false); // Desabilita o botão
+                        botao.setText("");
+                        botao.setIcon(null);
+                        botao.setEnabled(false);
                     }
                     break;
                 case "JOGO_CARREGADO":
@@ -178,24 +186,42 @@ public class JanelaPrincipal extends JFrame implements Observador {
                     for (int i = 0; i < MotorJogo.TAMANHO_GRID; i++) {
                         for (int j = 0; j < MotorJogo.TAMANHO_GRID; j++) {
                             JButton botaoCarregado = botoesGrid[i][j];
-                            botaoCarregado.setIcon(null); // Limpa ícones antigos
-                            botaoCarregado.setText(""); // Limpa textos antigos
-                            botaoCarregado.setEnabled(true); // Reabilita o botão
+                            botaoCarregado.setIcon(null);
+                            botaoCarregado.setText("");
+                            botaoCarregado.setEnabled(true);
 
                             Celula celulaCarregada = tabuleiroCarregado[i][j];
                             if (!celulaCarregada.estaVazia()) {
-                                // Se a célula tiver um Pokémon, tenta carregar o ícone
-                                String nomeIcone = "/resources/" + celulaCarregada.getPokemon().getNome().toLowerCase() + ".png";
-                                try {
-                                    ImageIcon icon = new ImageIcon(getClass().getResource(nomeIcone));
-                                    Image img = icon.getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
-                                    botaoCarregado.setIcon(new ImageIcon(img));
-                                    botaoCarregado.setEnabled(false); // Desabilita o botão se já tiver um Pokémon revelado
-                                } catch (Exception e) {
-                                    botaoCarregado.setText(celulaCarregada.getPokemon().getNome().substring(0, Math.min(celulaCarregada.getPokemon().getNome().length(), 3)));
-                                    System.err.println("Imagem não encontrada para " + celulaCarregada.getPokemon().getNome() + ": " + nomeIcone);
-                                    botaoCarregado.setEnabled(false); // Desabilita o botão se já tiver um Pokémon revelado
+                                Pokemon pokemonCarregado = celulaCarregada.getPokemon();
+                                if (pokemonCarregado != null) {
+                                    String nomeIcone = "/resources/" + pokemonCarregado.getNome().toLowerCase() + ".png"; // Caminho ajustado com barra inicial
+                                    System.out.println("JOGO_CARREGADO: Tentando carregar imagem: " + nomeIcone);
+                                    try {
+                                        URL imageUrl = getClass().getResource(nomeIcone);
+                                        if (imageUrl != null) {
+                                            ImageIcon icon = new ImageIcon(imageUrl);
+                                            Image img = icon.getImage().getScaledInstance(40, 40, Image.SCALE_SMOOTH);
+                                            botaoCarregado.setIcon(new ImageIcon(img));
+                                            botaoCarregado.setEnabled(false);
+                                        } else {
+                                            botaoCarregado.setText(pokemonCarregado.getNome().substring(0, Math.min(pokemonCarregado.getNome().length(), 3)));
+                                            System.err.println("JOGO_CARREGADO: Imagem não encontrada para " + pokemonCarregado.getNome() + ": " + nomeIcone + " (URL nula)");
+                                            botaoCarregado.setEnabled(false);
+                                        }
+                                    } catch (Exception e) {
+                                        botaoCarregado.setText(pokemonCarregado.getNome().substring(0, Math.min(pokemonCarregado.getNome().length(), 3)));
+                                        System.err.println("JOGO_CARREGADO: Erro ao carregar imagem para " + pokemonCarregado.getNome() + ": " + nomeIcone + ". Erro: " + e.getMessage());
+                                        botaoCarregado.setEnabled(false);
+                                    }
+                                } else {
+                                    botaoCarregado.setText("");
+                                    botaoCarregado.setIcon(null);
+                                    botaoCarregado.setEnabled(true);
                                 }
+                            } else {
+                                botaoCarregado.setText("");
+                                botaoCarregado.setIcon(null);
+                                botaoCarregado.setEnabled(true);
                             }
                         }
                     }

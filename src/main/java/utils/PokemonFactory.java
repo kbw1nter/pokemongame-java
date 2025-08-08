@@ -16,7 +16,6 @@ public class PokemonFactory {
         };
     }
 
-    //Para criar Pokémons selvagens com nomes aleatórios do tipo
     public static Pokemon criarPokemonSelvagem(String tipo, int nivel, int forca) {
         Random random = new Random();
         String nomePokemon;
@@ -41,7 +40,6 @@ public class PokemonFactory {
             default:
                 throw new IllegalArgumentException("Tipo de Pokémon selvagem desconhecido: " + tipo);
         }
-        // Chama o método original para criar o Pokémon com a estratégia correta
         return criarPokemon(tipo, nomePokemon, nivel, forca);
     }
 }
