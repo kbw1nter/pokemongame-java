@@ -6,40 +6,50 @@ import java.util.Random;
 
 public class PokemonFactory {
 
+    private static final String[] NOMES_AGUA = {"squirtle", "magikarp", "psyduck", "vaporeon"};
+    private static final String[] NOMES_FLORESTA = {"bulbasaur", "bellsprout", "chikorita", "oddish"};
+    private static final String[] NOMES_TERRA = {"cubone", "diglett", "geodude", "sandshrew"};
+    private static final String[] NOMES_ELETRICO = {"pikachu", "jolteon", "magnemite", "voltorb"};
+
     public static Pokemon criarPokemon(String tipo, String nome, int nivel, int forca) {
         return switch (tipo.toLowerCase()) {
-            case "água" -> new PokemonAgua(nome, nivel, forca, new AtaqueAgua());
-            case "floresta" -> new PokemonFloresta(nome, nivel, forca, new AtaqueFloresta());
-            case "terra" -> new PokemonTerra(nome, nivel, forca, new AtaqueTerra());
-            case "elétrico" -> new PokemonEletrico(nome, nivel, forca, new AtaqueEletrico());
+            case "água" -> new PokemonAgua(nome, nivel, forca);
+            case "floresta" -> new PokemonFloresta(nome, nivel, forca);
+            case "terra" -> new PokemonTerra(nome, nivel, forca);
+            case "elétrico" -> new PokemonEletrico(nome, nivel, forca);
             default -> throw new IllegalArgumentException("Tipo de Pokémon desconhecido: " + tipo);
         };
     }
 
     public static Pokemon criarPokemonSelvagem(String tipo, int nivel, int forca) {
         Random random = new Random();
-        String nomePokemon;
+        String nome;
 
         switch (tipo.toLowerCase()) {
             case "água":
-                String[] nomesAgua = {"Squirtle", "Psyduck", "Magikarp"};
-                nomePokemon = nomesAgua[random.nextInt(nomesAgua.length)];
-                break;
+                nome = NOMES_AGUA[random.nextInt(NOMES_AGUA.length)];
+                return new PokemonAgua(nome, nivel, forca);
             case "floresta":
-                String[] nomesFloresta = {"Bulbasaur", "Oddish", "Bellsprout"};
-                nomePokemon = nomesFloresta[random.nextInt(nomesFloresta.length)];
-                break;
+                nome = NOMES_FLORESTA[random.nextInt(NOMES_FLORESTA.length)];
+                return new PokemonFloresta(nome, nivel, forca);
             case "terra":
-                String[] nomesTerra = {"Sandshrew", "Diglett", "Geodude"};
-                nomePokemon = nomesTerra[random.nextInt(nomesTerra.length)];
-                break;
+                nome = NOMES_TERRA[random.nextInt(NOMES_TERRA.length)];
+                return new PokemonTerra(nome, nivel, forca);
             case "elétrico":
-                String[] nomesEletrico = {"Pikachu", "Jolteon", "Magnemite"};
-                nomePokemon = nomesEletrico[random.nextInt(nomesEletrico.length)];
-                break;
+                nome = NOMES_ELETRICO[random.nextInt(NOMES_ELETRICO.length)];
+                return new PokemonEletrico(nome, nivel, forca);
             default:
                 throw new IllegalArgumentException("Tipo de Pokémon selvagem desconhecido: " + tipo);
         }
-        return criarPokemon(tipo, nomePokemon, nivel, forca);
+    }
+
+    public static Pokemon criarPokemonAleatorio() {
+        Random random = new Random();
+        String[] tipos = {"água", "floresta", "terra", "elétrico"};
+        String tipo = tipos[random.nextInt(tipos.length)];
+        int nivel = random.nextInt(10) + 1; // Nível entre 1 e 10
+        int forca = random.nextInt(15) + 5; // Força entre 5 e 19
+
+        return criarPokemonSelvagem(tipo, nivel, forca);
     }
 }

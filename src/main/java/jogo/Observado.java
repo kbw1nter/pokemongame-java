@@ -11,7 +11,8 @@ public class Observado {
         observadores.add(obs);
     }
 
-    public void notificarObservadores(String evento, Object dados) {
+    // Tornando o método protegido para que subclasses possam chamá-lo
+    protected void notificarObservadores(String evento, Object dados) {
         for (Observador obs : observadores) {
             obs.atualizar(evento, dados);
         }

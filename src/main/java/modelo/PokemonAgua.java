@@ -1,9 +1,12 @@
 package modelo;
 
-import estrategia.AtaqueAgua;
+import estrategia.IAtaque;
 
 public class PokemonAgua extends Pokemon {
-    public PokemonAgua(String nome, int nivel, int forca, AtaqueAgua ataqueAgua) {
-        super(nome, "Água", nivel, forca, new AtaqueAgua());
+    private static final long serialVersionUID = 1L;
+
+    public PokemonAgua(String nome, int nivel, int forca, IAtaque estrategia) {
+        super(nome, "Água", nivel, forca, estrategia);
     }
 }
+

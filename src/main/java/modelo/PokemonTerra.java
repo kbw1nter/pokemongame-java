@@ -1,10 +1,13 @@
 package modelo;
 
 import estrategia.AtaqueTerra;
+import estrategia.IAtaque;
 
 public class PokemonTerra extends Pokemon {
-    public PokemonTerra(String nome, int nivel, int forca, AtaqueTerra ataqueTerra) {
+    private static final long serialVersionUID = 1L;
+
+    public PokemonTerra(String nome, int nivel, int forca, IAtaque estrategia) {
         // chama o construtor da classe pai (pokemon)
-        super(nome, "Terra", nivel, forca, new AtaqueTerra());
+        super(nome, "Terra", nivel, forca, estrategia);
     }
 }
