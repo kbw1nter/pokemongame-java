@@ -13,10 +13,10 @@ public class PokemonFactory {
 
     public static Pokemon criarPokemon(String tipo, String nome, int nivel, int forca) {
         return switch (tipo.toLowerCase()) {
-            case "água" -> new PokemonAgua(nome, nivel, forca);
-            case "floresta" -> new PokemonFloresta(nome, nivel, forca);
-            case "terra" -> new PokemonTerra(nome, nivel, forca);
-            case "elétrico" -> new PokemonEletrico(nome, nivel, forca);
+            case "água" -> new PokemonAgua(nome, nivel, forca, new AtaqueAgua());
+            case "floresta" -> new PokemonFloresta(nome, nivel, forca, new AtaqueFloresta());
+            case "terra" -> new PokemonTerra(nome, nivel, forca, new AtaqueTerra());
+            case "elétrico" -> new PokemonEletrico(nome, nivel, forca, new AtaqueEletrico());
             default -> throw new IllegalArgumentException("Tipo de Pokémon desconhecido: " + tipo);
         };
     }
@@ -28,16 +28,16 @@ public class PokemonFactory {
         switch (tipo.toLowerCase()) {
             case "água":
                 nome = NOMES_AGUA[random.nextInt(NOMES_AGUA.length)];
-                return new PokemonAgua(nome, nivel, forca);
+                return new PokemonAgua(nome, nivel, forca, new AtaqueAgua());
             case "floresta":
                 nome = NOMES_FLORESTA[random.nextInt(NOMES_FLORESTA.length)];
-                return new PokemonFloresta(nome, nivel, forca);
+                return new PokemonFloresta(nome, nivel, forca, new AtaqueFloresta());
             case "terra":
                 nome = NOMES_TERRA[random.nextInt(NOMES_TERRA.length)];
-                return new PokemonTerra(nome, nivel, forca);
+                return new PokemonTerra(nome, nivel, forca, new AtaqueTerra());
             case "elétrico":
                 nome = NOMES_ELETRICO[random.nextInt(NOMES_ELETRICO.length)];
-                return new PokemonEletrico(nome, nivel, forca);
+                return new PokemonEletrico(nome, nivel, forca, new AtaqueEletrico());
             default:
                 throw new IllegalArgumentException("Tipo de Pokémon selvagem desconhecido: " + tipo);
         }

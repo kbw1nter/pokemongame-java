@@ -27,6 +27,8 @@ public class MotorJogo extends Observado {
         inicializarTabuleiro();
     }
 
+    // O método notificarObservadores já está na classe Observado e é chamado por super.notificarObservadores
+
     private void inicializarTabuleiro() {
         tabuleiro = new Celula[TAMANHO_GRID][TAMANHO_GRID];
         for (int i = 0; i < TAMANHO_GRID; i++) {
@@ -77,13 +79,13 @@ public class MotorJogo extends Observado {
         jogador.capturarPokemon(PokemonFactory.criarPokemon("elétrico", "pikachu", 5, 12));
         computador.capturarPokemon(PokemonFactory.criarPokemon("água", "squirtle", 5, 10));
 
-        notificarObservadores("MENSAGEM", "Novo jogo iniciado!");
+        super.notificarObservadores("MENSAGEM", "Novo jogo iniciado!");
         atualizarStatus();
     }
 
     public void jogar(int x, int y) {
         if (x < 0 || x >= TAMANHO_GRID || y < 0 || y >= TAMANHO_GRID) {
-            notificarObservadores("MENSAGEM", "Posição inválida!");
+            super.notificarObservadores("MENSAGEM", "Posição inválida!");
             return;
         }
 
@@ -91,16 +93,16 @@ public class MotorJogo extends Observado {
 
         if (!celula.estaVazia()) {
             Pokemon pokemonEncontrado = celula.getPokemon();
-            notificarObservadores("MENSAGEM", "Você encontrou um " + pokemonEncontrado.getNome() + "!");
+            super.notificarObservadores("MENSAGEM", "Você encontrou um " + pokemonEncontrado.getNome() + "!");
 
             // Notificar a UI para mostrar o Pokémon
-            notificarObservadores("POKEMON_ENCONTRADO", new int[]{x, y});
+            super.notificarObservadores("POKEMON_ENCONTRADO", new int[]{x, y});
 
             // Tentar capturar o Pokémon
             if (tentarCaptura(pokemonEncontrado)) {
                 jogador.capturarPokemon(pokemonEncontrado);
                 celula.esvaziar();
-                notificarObservadores("MENSAGEM", "Você capturou " + pokemonEncontrado.getNome() + "!");
+                super.notificarObservadores("MENSAGEM", "Você capturou " + pokemonEncontrado.getNome() + "!");
                 jogador.adicionarPontos(50);
             } else {
                 // Batalha
@@ -111,7 +113,7 @@ public class MotorJogo extends Observado {
                 }
             }
         } else {
-            notificarObservadores("MENSAGEM", "Célula vazia. Nada encontrado.");
+            super.notificarObservadores("MENSAGEM", "Célula vazia. Nada encontrado.");
         }
 
         atualizarStatus();
@@ -130,11 +132,11 @@ public class MotorJogo extends Observado {
     private void batalhar(Pokemon atacante, Pokemon defensor) {
         if (atacante != null && defensor != null) {
             atacante.atacar(defensor);
-            notificarObservadores("MENSAGEM", atacante.getNome() + " atacou " + defensor.getNome());
+            super.notificarObservadores("MENSAGEM", atacante.getNome() + " atacou " + defensor.getNome());
 
             if (!defensor.estaNocauteado()) {
                 defensor.atacar(atacante);
-                notificarObservadores("MENSAGEM", defensor.getNome() + " contra-atacou!");
+                super.notificarObservadores("MENSAGEM", defensor.getNome() + " contra-atacou!");
             }
         }
     }
@@ -142,7 +144,7 @@ public class MotorJogo extends Observado {
     private void realizarJogadaComputador() {
         executorComputador.submit(() -> {
             try {
-                notificarObservadores("MENSAGEM", "Computador está pensando...");
+                super.notificarObservadores("MENSAGEM", "Computador está pensando...");
                 Thread.sleep(2000); // Simula o "tempo de pensar"
 
                 // Lógica simples: escolher uma posição aleatória
@@ -155,13 +157,13 @@ public class MotorJogo extends Observado {
                 Celula celula = tabuleiro[x][y];
                 Pokemon pokemonEncontrado = celula.getPokemon();
 
-                notificarObservadores("MENSAGEM", "Computador encontrou um " + pokemonEncontrado.getNome() + "!");
-                notificarObservadores("POKEMON_ENCONTRADO", new int[]{x, y});
+                super.notificarObservadores("MENSAGEM", "Computador encontrou um " + pokemonEncontrado.getNome() + "!");
+                super.notificarObservadores("POKEMON_ENCONTRADO", new int[]{x, y});
 
                 if (tentarCaptura(pokemonEncontrado)) {
                     computador.capturarPokemon(pokemonEncontrado);
                     celula.esvaziar();
-                    notificarObservadores("MENSAGEM", "Computador capturou " + pokemonEncontrado.getNome() + "!");
+                    super.notificarObservadores("MENSAGEM", "Computador capturou " + pokemonEncontrado.getNome() + "!");
                     computador.adicionarPontos(50);
                 } else {
                     batalhar(computador.getPokemonPrincipal(), pokemonEncontrado);
@@ -191,7 +193,7 @@ public class MotorJogo extends Observado {
                 computador.getPokemonPrincipal() != null ? computador.getPokemonPrincipal().getNome() : "Nenhum",
                 computador.getPokemonPrincipal() != null ? computador.getPokemonPrincipal().getEnergia() : 0);
 
-        notificarObservadores("STATUS_ATUALIZADO", new String[]{statusJogador, statusComputador});
+        super.notificarObservadores("STATUS_ATUALIZADO", new String[]{statusJogador, statusComputador});
     }
 
     private boolean jogoTerminou() {
@@ -210,7 +212,7 @@ public class MotorJogo extends Observado {
         if (jogoTerminou()) {
             String vencedor = jogador.getPontuacao() > computador.getPontuacao() ?
                     jogador.getNome() : computador.getNome();
-            notificarObservadores("FIM_DE_JOGO", "O vencedor é: " + vencedor);
+            super.notificarObservadores("FIM_DE_JOGO", "O vencedor é: " + vencedor);
             executorComputador.shutdown();
         }
     }
@@ -220,9 +222,9 @@ public class MotorJogo extends Observado {
             oos.writeObject(jogador);
             oos.writeObject(computador);
             oos.writeObject(tabuleiro);
-            notificarObservadores("MENSAGEM", "Jogo salvo com sucesso!");
+            super.notificarObservadores("MENSAGEM", "Jogo salvo com sucesso!");
         } catch (IOException e) {
-            notificarObservadores("MENSAGEM", "Erro ao salvar o jogo: " + e.getMessage());
+            super.notificarObservadores("MENSAGEM", "Erro ao salvar o jogo: " + e.getMessage());
         }
     }
 
@@ -233,11 +235,11 @@ public class MotorJogo extends Observado {
             computador = (Treinador) ois.readObject();
             tabuleiro = (Celula[][]) ois.readObject();
 
-            notificarObservadores("MENSAGEM", "Jogo carregado com sucesso!");
-            notificarObservadores("JOGO_CARREGADO", tabuleiro);
+            super.notificarObservadores("MENSAGEM", "Jogo carregado com sucesso!");
+            super.notificarObservadores("JOGO_CARREGADO", tabuleiro);
             atualizarStatus();
         } catch (IOException | ClassNotFoundException e) {
-            notificarObservadores("MENSAGEM", "Erro ao carregar o jogo: " + e.getMessage());
+            super.notificarObservadores("MENSAGEM", "Erro ao carregar o jogo: " + e.getMessage());
         }
     }
 
