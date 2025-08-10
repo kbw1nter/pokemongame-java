@@ -9,6 +9,7 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,15 +45,16 @@ public class JanelaPrincipal extends JFrame implements Observador {
         for (int i = 0; i < MotorJogo.TAMANHO_GRID; i++) {
             for (int j = 0; j < MotorJogo.TAMANHO_GRID; j++) {
                 JButton botao = new JButton();
+                // Aumentando o tamanho preferencial do botão para acomodar imagens maiores
                 botao.setPreferredSize(new Dimension(100, 100));
                 botao.setFont(new Font("Arial", Font.BOLD, 10));
                 botao.setFocusPainted(false);
                 final int x = i;
-                final int inty = j;
+                final int y = j;
                 botao.addActionListener(new ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
-                        motorJogo.jogar(x, inty);
+                        motorJogo.jogar(x, y);
                     }
                 });
                 botoesGrid[i][j] = botao;
@@ -158,25 +160,34 @@ public class JanelaPrincipal extends JFrame implements Observador {
                     Pokemon pokemonEncontrado = motorJogo.getTabuleiro()[x][y].getPokemon();
 
                     if (pokemonEncontrado != null) {
-                        // Caminho corrigido: sem 'resources/'
                         String nomeIcone = pokemonEncontrado.getNome().toLowerCase() + ".png";
                         System.out.println("POKEMON_ENCONTRADO: Tentando carregar imagem: " + nomeIcone);
                         try (InputStream is = ClassLoader.getSystemResourceAsStream(nomeIcone)) {
                             if (is != null) {
-                                // Aumentando o tamanho da imagem para 80x80
-                                Image img = ImageIO.read(is).getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+                                BufferedImage originalImage = ImageIO.read(is);
+                                BufferedImage imageWithoutAlpha = new BufferedImage(originalImage.getWidth(), originalImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+                                Graphics2D g = imageWithoutAlpha.createGraphics();
+                                g.drawImage(originalImage, 0, 0, null);
+                                g.dispose();
+                                // tamanho da imagem
+                                Image img = imageWithoutAlpha.getScaledInstance(100, 100, Image.SCALE_SMOOTH);
                                 botao.setIcon(new ImageIcon(img));
                                 botao.setEnabled(false);
                                 System.out.println("POKEMON_ENCONTRADO: Imagem carregada com sucesso: " + nomeIcone);
                             } else {
                                 System.err.println("POKEMON_ENCONTRADO: Imagem não encontrada para " + pokemonEncontrado.getNome() + ": " + nomeIcone + " (InputStream nulo)");
-                                // Tentando com caminho absoluto (com barra inicial) como fallback
+                                // Fallback para caminho absoluto (com barra inicial) se o relativo falhar
                                 nomeIcone = "/" + nomeIcone;
                                 System.out.println("POKEMON_ENCONTRADO: Tentando carregar imagem com caminho absoluto: " + nomeIcone);
                                 try (InputStream isFallback = getClass().getResourceAsStream(nomeIcone)) {
                                     if (isFallback != null) {
-                                        // Aumentando o tamanho da imagem para 80x80
-                                        Image img = ImageIO.read(isFallback).getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+                                        BufferedImage originalImage = ImageIO.read(isFallback);
+                                        BufferedImage imageWithoutAlpha = new BufferedImage(originalImage.getWidth(), originalImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+                                        Graphics2D g = imageWithoutAlpha.createGraphics();
+                                        g.drawImage(originalImage, 0, 0, null);
+                                        g.dispose();
+
+                                        Image img = imageWithoutAlpha.getScaledInstance(100, 100, Image.SCALE_SMOOTH);
                                         botao.setIcon(new ImageIcon(img));
                                         botao.setEnabled(false);
                                         System.out.println("POKEMON_ENCONTRADO: Imagem carregada com sucesso com caminho absoluto: " + nomeIcone);
@@ -215,25 +226,33 @@ public class JanelaPrincipal extends JFrame implements Observador {
                             if (!celulaCarregada.estaVazia()) {
                                 Pokemon pokemonCarregado = celulaCarregada.getPokemon();
                                 if (pokemonCarregado != null) {
-                                    // Caminho corrigido: sem 'resources/'
                                     String nomeIcone = pokemonCarregado.getNome().toLowerCase() + ".png";
                                     System.out.println("JOGO_CARREGADO: Tentando carregar imagem: " + nomeIcone);
                                     try (InputStream is = ClassLoader.getSystemResourceAsStream(nomeIcone)) {
                                         if (is != null) {
-                                            // Aumentando o tamanho da imagem para 80x80
-                                            Image img = ImageIO.read(is).getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+                                            BufferedImage originalImage = ImageIO.read(is);
+                                            BufferedImage imageWithoutAlpha = new BufferedImage(originalImage.getWidth(), originalImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+                                            Graphics2D g = imageWithoutAlpha.createGraphics();
+                                            g.drawImage(originalImage, 0, 0, null);
+                                            g.dispose();
+
+                                            Image img = imageWithoutAlpha.getScaledInstance(100, 100, Image.SCALE_SMOOTH);
                                             botaoCarregado.setIcon(new ImageIcon(img));
                                             botaoCarregado.setEnabled(false);
                                             System.out.println("JOGO_CARREGADO: Imagem carregada com sucesso: " + nomeIcone);
                                         } else {
                                             System.err.println("JOGO_CARREGADO: Imagem não encontrada para " + pokemonCarregado.getNome() + ": " + nomeIcone + " (InputStream nulo)");
-                                            // Tentando com caminho absoluto (com barra inicial) como fallback
                                             nomeIcone = "/" + nomeIcone;
                                             System.out.println("JOGO_CARREGADO: Tentando carregar imagem com caminho absoluto: " + nomeIcone);
                                             try (InputStream isFallback = getClass().getResourceAsStream(nomeIcone)) {
                                                 if (isFallback != null) {
-                                                    // Aumentando o tamanho da imagem para 80x80
-                                                    Image img = ImageIO.read(isFallback).getScaledInstance(80, 80, Image.SCALE_SMOOTH);
+                                                    BufferedImage originalImage = ImageIO.read(isFallback);
+                                                    BufferedImage imageWithoutAlpha = new BufferedImage(originalImage.getWidth(), originalImage.getHeight(), BufferedImage.TYPE_INT_RGB);
+                                                    Graphics2D g = imageWithoutAlpha.createGraphics();
+                                                    g.drawImage(originalImage, 0, 0, null);
+                                                    g.dispose();
+
+                                                    Image img = imageWithoutAlpha.getScaledInstance(100, 100, Image.SCALE_SMOOTH);
                                                     botaoCarregado.setIcon(new ImageIcon(img));
                                                     botaoCarregado.setEnabled(false);
                                                     System.out.println("JOGO_CARREGADO: Imagem carregada com sucesso com caminho absoluto: " + nomeIcone);

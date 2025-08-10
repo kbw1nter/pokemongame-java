@@ -26,10 +26,11 @@ public abstract class Pokemon implements Serializable {
         this.estrategiaAtaque = estrategia;
     }
 
-    public void atacar(Pokemon oponente) {
+    public int atacar(Pokemon oponente) { // Alterado para retornar int
         int dano = this.estrategiaAtaque.calcularDano(this, oponente);
         oponente.receberDano(dano);
         System.out.println(this.nome + " atacou " + oponente.getNome() + " causando " + dano + " de dano.");
+        return dano; // Retorna o dano causado
     }
 
     public void receberDano(int dano) {
@@ -78,5 +79,9 @@ public abstract class Pokemon implements Serializable {
 
     public boolean isSelvagem() {
         return selvagem;
+    }
+
+    public int getPontosVida() {
+        return energia;
     }
 }
