@@ -2,7 +2,6 @@ package jogo;
 
 import modelo.*;
 import estrategia.*;
-import excecoes.RegiaoInvalidaException;
 import utils.PokemonFactory;
 
 import java.io.*;
@@ -17,6 +16,8 @@ import java.util.concurrent.TimeUnit;
 public class MotorJogo extends Observado implements Serializable {
     private static final long serialVersionUID = 1L;
     public static final int TAMANHO_GRID = 8;
+    private static final int TEMPO_ESPERA_COMPUTADOR = 1500; // 1.5 segundos
+    
     private Celula[][] tabuleiro;
     private Treinador jogador;
     private Treinador computador;
@@ -24,6 +25,12 @@ public class MotorJogo extends Observado implements Serializable {
     private int turno;
     private transient ExecutorService executorService;
     private transient Future<?> computadorTask;
+    
+    // Campos para controlar o estado de captura
+    private transient Pokemon pokemonSelvagemEncontrado;
+    private transient int ultimaCelulaX;
+    private transient int ultimaCelulaY;
+    private transient boolean aguardandoAcaoJogador; // Novo campo para controlar o estado
 
     public MotorJogo() {
         tabuleiro = new Celula[TAMANHO_GRID][TAMANHO_GRID];
@@ -31,6 +38,12 @@ public class MotorJogo extends Observado implements Serializable {
         computador = new Treinador("Computador");
         random = new Random();
         turno = 0;
+        aguardandoAcaoJogador = false;
+        
+        // Adiciona um Pokémon inicial para cada jogador
+        jogador.capturarPokemon(PokemonFactory.criarPokemonInicialJogador());
+        computador.capturarPokemon(PokemonFactory.criarPokemonInicialComputador());
+        
         inicializarTabuleiro();
         executorService = Executors.newSingleThreadExecutor();
     }
@@ -44,21 +57,6 @@ public class MotorJogo extends Observado implements Serializable {
         distribuirPokemonsSelvagens();
     }
 
-    private void distribuirPokemonsSelvagens() {
-        int numPokemons = (int) (TAMANHO_GRID * TAMANHO_GRID * 0.2); // 20% das células terão Pokémons
-        for (int k = 0; k < numPokemons; k++) {
-            int x, y;
-            do {
-                x = random.nextInt(TAMANHO_GRID);
-                y = random.nextInt(TAMANHO_GRID);
-            } while (!tabuleiro[x][y].estaVazia()); // Garante que a célula esteja vazia
-
-            Pokemon pokemon = PokemonFactory.criarPokemonAleatorio();
-            tabuleiro[x][y].setPokemon(pokemon);
-            super.notificarObservadores("MENSAGEM", "Um " + pokemon.getNome() + " selvagem apareceu em (" + x + ", " + y + ")!");
-        }
-    }
-
     public Celula[][] getTabuleiro() {
         return tabuleiro;
     }
@@ -67,6 +65,13 @@ public class MotorJogo extends Observado implements Serializable {
         jogador = new Treinador("Jogador");
         computador = new Treinador("Computador");
         turno = 0;
+        aguardandoAcaoJogador = false;
+        pokemonSelvagemEncontrado = null;
+        
+        // Garante que cada jogador comece com um Pokémon
+        jogador.capturarPokemon(PokemonFactory.criarPokemonInicialJogador());
+        computador.capturarPokemon(PokemonFactory.criarPokemonInicialComputador());
+        
         inicializarTabuleiro();
         super.notificarObservadores("STATUS_ATUALIZADO", new String[]{jogador.getStatus(), computador.getStatus()});
         super.notificarObservadores("MENSAGEM", "Novo jogo iniciado!");
@@ -74,25 +79,63 @@ public class MotorJogo extends Observado implements Serializable {
     }
 
     public void jogar(int x, int y) {
+        // Verifica se é uma ação especial (captura/fuga)
+        if (x < 0 || y < 0) {
+            if (aguardandoAcaoJogador && pokemonSelvagemEncontrado != null) {
+                tratarAcaoEspecialJogador(x, y);
+                aguardandoAcaoJogador = false;
+                // Após processar a ação do jogador, inicia o turno do computador
+                iniciarTurnoComputador();
+            } else {
+                super.notificarObservadores("MENSAGEM", "Nenhum Pokémon selvagem para interagir.");
+            }
+            return;
+        }
+
+        // Verifica se o computador ainda está jogando
         if (computadorTask != null && !computadorTask.isDone()) {
             super.notificarObservadores("MENSAGEM", "Aguarde o computador terminar o turno dele.");
             return;
         }
 
-        super.notificarObservadores("MENSAGEM", "\n--- Turno do Jogador ---");
-        processarTurno(jogador, x, y);
+        // Verifica se está aguardando ação do jogador
+        if (aguardandoAcaoJogador) {
+            super.notificarObservadores("MENSAGEM", "Você precisa decidir o que fazer com o Pokémon selvagem encontrado!");
+            return;
+        }
 
+        super.notificarObservadores("MENSAGEM", "\n--- Turno do Jogador ---");
+        processarTurnoJogador(x, y);
+    }
+
+    private void processarTurnoJogador(int x, int y) {
+        processarTurno(jogador, x, y);
+        
+        // Se encontrou um Pokémon selvagem, aguarda ação do jogador
+        if (pokemonSelvagemEncontrado != null) {
+            aguardandoAcaoJogador = true;
+            return; // Não avança o turno ainda
+        }
+        
+        // Verifica vitória do jogador
         if (jogador.getPontuacao() >= 500) {
             super.notificarObservadores("MENSAGEM", "Jogador venceu o jogo!");
             return;
         }
 
+        // Inicia turno do computador
+        iniciarTurnoComputador();
+    }
+
+    private void iniciarTurnoComputador() {
         turno++;
         super.notificarObservadores("MENSAGEM", "\n--- Turno do Computador ---");
+        
         computadorTask = executorService.submit(() -> {
             try {
-                Thread.sleep(1000); // Simula o "pensar" do computador
+                Thread.sleep(1000);
                 processarTurnoComputador();
+                
                 if (computador.getPontuacao() >= 500) {
                     super.notificarObservadores("MENSAGEM", "Computador venceu o jogo!");
                 }
@@ -102,153 +145,210 @@ public class MotorJogo extends Observado implements Serializable {
             }
         });
     }
+    
+    private void tratarAcaoEspecialJogador(int codigoX, int codigoY) {
+        if (pokemonSelvagemEncontrado == null) return;
+
+        if (codigoX == -2 && codigoY == -2) { // Tentar capturar
+            if (pokemonSelvagemEncontrado.tentarCapturar()) {
+                if (pokemonSelvagemEncontrado.getTreinador() == null) {
+                    // Captura bem-sucedida
+                    jogador.capturarPokemon(pokemonSelvagemEncontrado);
+                    pokemonSelvagemEncontrado.setTreinador(jogador);
+                    notificarObservadores("MENSAGEM", "Você capturou " + pokemonSelvagemEncontrado.getNome() + "!");
+                    jogador.adicionarPontos(50);
+                    tabuleiro[ultimaCelulaX][ultimaCelulaY].setPokemon(null);
+                    notificarObservadores("CELULA_VAZIA", new int[]{ultimaCelulaX, ultimaCelulaY});
+                }
+            } else {
+                // Falha na captura
+                notificarObservadores("MENSAGEM", "Você falhou ao tentar capturar " + pokemonSelvagemEncontrado.getNome());
+                notificarObservadores("CELULA_VAZIA_SEM_NOME", new int[]{ultimaCelulaX, ultimaCelulaY});
+            }
+        } 
+        else if (codigoX == -3 && codigoY == -3) { // Fugir
+            if (pokemonSelvagemEncontrado.tentarFugir()) {
+                notificarObservadores("MENSAGEM", "Você conseguiu fugir do Pokémon selvagem!");
+                tabuleiro[ultimaCelulaX][ultimaCelulaY].setPokemon(null);
+                notificarObservadores("CELULA_VAZIA", new int[]{ultimaCelulaX, ultimaCelulaY});
+            } else {
+                notificarObservadores("MENSAGEM", "Você não conseguiu fugir do Pokémon selvagem!");
+                notificarObservadores("CELULA_VAZIA_SEM_NOME", new int[]{ultimaCelulaX, ultimaCelulaY});
+            }
+        }
+        
+        pokemonSelvagemEncontrado = null;
+        atualizarStatus();
+        atualizarTabuleiroUI();
+    }
+
+    private void tratarAcaoEspecialComputador(int codigoX, int codigoY) {
+        if (pokemonSelvagemEncontrado == null) return;
+
+        if (codigoX == -2 && codigoY == -2) { // Tentar capturar
+            if (pokemonSelvagemEncontrado.tentarCapturar()) {
+                if (pokemonSelvagemEncontrado.getTreinador() == null) {
+                    // Captura bem-sucedida
+                    computador.capturarPokemon(pokemonSelvagemEncontrado);
+                    pokemonSelvagemEncontrado.setTreinador(computador);
+                    notificarObservadores("MENSAGEM", "Computador capturou " + pokemonSelvagemEncontrado.getNome() + "!");
+                    computador.adicionarPontos(50);
+                    tabuleiro[ultimaCelulaX][ultimaCelulaY].setPokemon(null);
+                    notificarObservadores("CELULA_VAZIA", new int[]{ultimaCelulaX, ultimaCelulaY});
+                }
+            } else {
+                // Falha na captura
+                notificarObservadores("MENSAGEM", "Computador falhou ao tentar capturar " + pokemonSelvagemEncontrado.getNome());
+                notificarObservadores("CELULA_VAZIA_SEM_NOME", new int[]{ultimaCelulaX, ultimaCelulaY});
+            }
+        }
+        
+        pokemonSelvagemEncontrado = null;
+        atualizarStatus();
+        atualizarTabuleiroUI();
+    }
 
     private void processarTurno(Treinador treinador, int x, int y) {
-        if (x < 0 || x >= TAMANHO_GRID || y < 0 || y >= TAMANHO_GRID) {
-            super.notificarObservadores("MENSAGEM", "Coordenadas inválidas. Tente novamente.");
-            return;
-        }
-
         Celula celula = tabuleiro[x][y];
-
+        celula.setVisitada(true);
+        
         if (celula.estaVazia()) {
-            super.notificarObservadores("MENSAGEM", treinador.getNome() + " encontrou uma célula vazia. Nada encontrado.");
-            celula.setVisitada(true);
-            // Notifica a UI para desabilitar o botão da célula vazia
-            super.notificarObservadores("CELULA_VAZIA", new int[]{x, y});
-        } else {
-            Pokemon pokemonSelvagem = celula.getPokemon();
-            super.notificarObservadores("MENSAGEM", treinador.getNome() + " encontrou um " + pokemonSelvagem.getNome() + " selvagem!");
-
-            if (treinador.getPokemonAtual() == null) {
-                treinador.setPokemonAtual(pokemonSelvagem);
-                celula.setPokemon(null); // Remove o Pokémon da célula
-                treinador.adicionarPontos(50); // Pontos por encontrar o primeiro Pokémon
-                super.notificarObservadores("MENSAGEM", treinador.getNome() + " capturou " + pokemonSelvagem.getNome() + "!");
-                super.notificarObservadores("POKEMON_ENCONTRADO", new int[]{x, y}); // Notifica a UI para mostrar a imagem
-            } else {
-                super.notificarObservadores("MENSAGEM", treinador.getNome() + " já tem um " + treinador.getPokemonAtual().getNome() + ". Batalha iniciada!");
-                batalhar(treinador.getPokemonAtual(), pokemonSelvagem);
-                if (pokemonSelvagem.getPontosVida() <= 0) {
-                    celula.setPokemon(null); // Remove o Pokémon da célula se for derrotado
-                    super.notificarObservadores("POKEMON_ENCONTRADO", new int[]{x, y}); // Notifica a UI para limpar a célula
-                }
-            }
-            celula.setVisitada(true);
-        }
-        super.notificarObservadores("STATUS_ATUALIZADO", new String[]{jogador.getStatus(), computador.getStatus()});
-    }
-
-    private void processarTurnoComputador() {
-        int x, y;
-        Celula celula;
-        boolean encontrouPokemon = false;
-        // Tenta encontrar um Pokémon selvagem não visitado
-        for (int i = 0; i < TAMANHO_GRID; i++) {
-            for (int j = 0; j < TAMANHO_GRID; j++) {
-                if (!tabuleiro[i][j].estaVazia() && !tabuleiro[i][j].foiVisitada()) {
-                    x = i;
-                    y = j;
-                    processarTurno(computador, x, y);
-                    encontrouPokemon = true;
-                    return;
-                }
-            }
-        }
-
-        // Se não encontrou Pokémon, escolhe uma célula aleatória não visitada
-        if (!encontrouPokemon) {
-            do {
-                x = random.nextInt(TAMANHO_GRID);
-                y = random.nextInt(TAMANHO_GRID);
-                celula = tabuleiro[x][y];
-            } while (celula.foiVisitada());
-            processarTurno(computador, x, y);
-        }
-    }
-
-    private void batalhar(Pokemon p1, Pokemon p2) {
-        super.notificarObservadores("MENSAGEM", "--- BATALHA INICIADA ---");
-
-        if (p1 == null || p2 == null) {
-            super.notificarObservadores("MENSAGEM", "Um dos Pokémons para batalha é nulo.");
+            String mensagem = treinador == jogador ? 
+                "Nada encontrado nesta célula." : 
+                "Computador não encontrou nada na célula.";
+            notificarObservadores("MENSAGEM", mensagem);
+            notificarObservadores("CELULA_VAZIA", new int[]{x, y});
             return;
         }
 
-        while (!p1.estaNocauteado() && !p2.estaNocauteado()) {
-            // Turno do P1
-            if (!p1.estaNocauteado()) {
-                p1.atacar(p2);
-                super.notificarObservadores("MENSAGEM", p1.getNome() + " HP: " + p1.getPontosVida() + " | " + p2.getNome() + " HP: " + p2.getPontosVida());
+        Pokemon pokemonEncontrado = celula.getPokemon();
+        
+        // Se o Pokémon pertence a um treinador (incluindo o jogador)
+        if (pokemonEncontrado.getTreinador() != null) {
+            // Mostra o Pokémon no tabuleiro
+            notificarObservadores("POKEMON_ENCONTRADO", new int[]{x, y});
+            
+            // Se pertence ao oponente, inicia batalha
+            if (!pokemonEncontrado.getTreinador().equals(treinador)) {
+                notificarObservadores("BATALHA_INICIADA", 
+                    new Pokemon[]{treinador.getPokemonAtual(), pokemonEncontrado});
+                batalhar(treinador.getPokemonAtual(), pokemonEncontrado);
             }
-            // Turno do P2
-            if (!p2.estaNocauteado()) {
-                p2.atacar(p1);
-                super.notificarObservadores("MENSAGEM", p2.getNome() + " HP: " + p2.getPontosVida() + " | " + p1.getNome() + " HP: " + p1.getPontosVida());
-            }
+            return;
         }
-
-        String vencedor = "Ninguém";
-        if (p1.estaNocauteado() && p2.estaNocauteado()) {
-            super.notificarObservadores("MENSAGEM", "Ambos os Pokémons foram nocauteados! Empate.");
-        } else if (p1.estaNocauteado()) {
-            vencedor = p2.getNome();
-            super.notificarObservadores("MENSAGEM", p2.getNome() + " venceu a batalha!");
-            if (p2 == jogador.getPokemonAtual()) { // Se o vencedor for o Pokémon do jogador
-                jogador.adicionarPontos(50);
-            } else if (p2 == computador.getPokemonAtual()) { // Se o vencedor for o Pokémon do computador
-                computador.adicionarPontos(50);
-            }
-        } else {
-            vencedor = p1.getNome();
-            super.notificarObservadores("MENSAGEM", p1.getNome() + " venceu a batalha!");
-            if (p1 == jogador.getPokemonAtual()) { // Se o vencedor for o Pokémon do jogador
-                jogador.adicionarPontos(50);
-            } else if (p1 == computador.getPokemonAtual()) { // Se o vencedor for o Pokémon do computador
-                computador.adicionarPontos(50);
-            }
-        }
-
-        p1.restaurarEnergia();
-        p2.restaurarEnergia();
-        super.notificarObservadores("MENSAGEM", "Energia dos Pokémons restaurada.");
-        super.notificarObservadores("MENSAGEM", "--- FIM DA BATALHA ---");
-
-        atualizarStatus();
-
-        // Verifica condição de fim de jogo (exemplo: se todos os Pokémons selvagens foram capturados)
-        if (todosPokemonsSelvagensCapturados()) {
-            super.notificarObservadores("FIM_DE_JOGO", "Todos os Pokémons selvagens foram capturados!");
-            determinarVencedorFinal();
-            executorService.shutdown();
-        }
+        
+        // Se é um Pokémon selvagem
+        this.pokemonSelvagemEncontrado = pokemonEncontrado;
+        this.ultimaCelulaX = x;
+        this.ultimaCelulaY = y;
+        
+        notificarObservadores("POKEMON_SELVAGEM_ENCONTRADO", pokemonEncontrado);
+        notificarObservadores("CELULA_VAZIA_SEM_NOME", new int[]{x, y});
     }
 
-    private boolean todosPokemonsSelvagensCapturados() {
-        for (int i = 0; i < TAMANHO_GRID; i++) {
-            for (int j = 0; j < TAMANHO_GRID; j++) {
-                if (!tabuleiro[i][j].estaVazia() && tabuleiro[i][j].getPokemon().isSelvagem()) {
-                    return false;
-                }
+    private void batalhar(Pokemon pokemonJogador, Pokemon pokemonOponente) {
+        notificarObservadores("BATALHA_INICIADA", 
+            new Pokemon[]{pokemonJogador, pokemonOponente});
+        
+        // Turno do jogador
+        pokemonJogador.atacar(pokemonOponente);
+        notificarObservadores("ATAQUE", 
+            new Object[]{pokemonJogador, pokemonOponente, pokemonOponente.getEnergia()});
+        
+        if (pokemonOponente.estaNocauteado()) {
+            notificarObservadores("BATALHA_TERMINADA", pokemonJogador);
+            jogador.adicionarPontos(100);
+            return;
+        }
+        
+        // Turno do oponente
+        pokemonOponente.atacar(pokemonJogador);
+        notificarObservadores("ATAQUE", 
+            new Object[]{pokemonOponente, pokemonJogador, pokemonJogador.getEnergia()});
+        
+        if (pokemonJogador.estaNocauteado()) {
+            notificarObservadores("BATALHA_TERMINADA", pokemonOponente);
+            if (pokemonOponente.getTreinador() == computador) {
+                computador.adicionarPontos(100);
             }
+            return;
         }
-        return true;
-    }
-
-    private void determinarVencedorFinal() {
-        if (jogador.getPontuacao() > computador.getPontuacao()) {
-            super.notificarObservadores("MENSAGEM", "FIM DE JOGO! O Jogador venceu com " + jogador.getPontuacao() + " pontos!");
-        } else if (computador.getPontuacao() > jogador.getPontuacao()) {
-            super.notificarObservadores("MENSAGEM", "FIM DE JOGO! O Computador venceu com " + computador.getPontuacao() + " pontos!");
-        } else {
-            super.notificarObservadores("MENSAGEM", "FIM DE JOGO! Empate!");
-        }
+        
+        notificarObservadores("BATALHA_CONTINUA", 
+            new Pokemon[]{pokemonJogador, pokemonOponente});
     }
 
     private void atualizarStatus() {
         String statusJogador = jogador.getStatus();
         String statusComputador = computador.getStatus();
         super.notificarObservadores("STATUS_ATUALIZADO", new String[]{statusJogador, statusComputador});
+    }
+
+    private void atualizarTabuleiroUI() {
+        for (int i = 0; i < TAMANHO_GRID; i++) {
+            for (int j = 0; j < TAMANHO_GRID; j++) {
+                if (!tabuleiro[i][j].estaVazia()) {
+                    // Mostra apenas Pokémon que pertencem a treinadores
+                    if (tabuleiro[i][j].getPokemon().getTreinador() != null) {
+                        super.notificarObservadores("POKEMON_ENCONTRADO", new int[]{i, j});
+                    } else {
+                        // Pokémon selvagem - mostra como célula vazia sem nome
+                        super.notificarObservadores("CELULA_VAZIA_SEM_NOME", new int[]{i, j});
+                    }
+                } else if (tabuleiro[i][j].foiVisitada()) {
+                    super.notificarObservadores("CELULA_VAZIA", new int[]{i, j});
+                } else {
+                    super.notificarObservadores("CELULA_VAZIA", new int[]{i, j});
+                }
+            }
+        }
+    }
+
+    private void distribuirPokemonsSelvagens() {
+        int numPokemons = (int) (TAMANHO_GRID * TAMANHO_GRID * 0.3);
+        
+        for (int i = 0; i < numPokemons; i++) {
+            int x, y;
+            do {
+                x = random.nextInt(TAMANHO_GRID);
+                y = random.nextInt(TAMANHO_GRID);
+            } while (!tabuleiro[x][y].estaVazia());
+            
+            Pokemon pokemon = PokemonFactory.criarPokemonAleatorio();
+            pokemon.setTreinador(null);
+            tabuleiro[x][y].setPokemon(pokemon);
+        }
+    }
+
+    private void processarTurnoComputador() {
+        try {
+            Thread.sleep(TEMPO_ESPERA_COMPUTADOR); // Espera antes de processar
+            
+            List<int[]> celulasNaoVisitadas = new ArrayList<>();
+            
+            for (int i = 0; i < TAMANHO_GRID; i++) {
+                for (int j = 0; j < TAMANHO_GRID; j++) {
+                    if (!tabuleiro[i][j].foiVisitada()) {
+                        celulasNaoVisitadas.add(new int[]{i, j});
+                    }
+                }
+            }
+            
+            if (!celulasNaoVisitadas.isEmpty()) {
+                int[] coordenadas = celulasNaoVisitadas.get(random.nextInt(celulasNaoVisitadas.size()));
+                processarTurno(computador, coordenadas[0], coordenadas[1]);
+                
+                // Verifica se encontrou um Pokémon selvagem
+                if (pokemonSelvagemEncontrado != null) {
+                    Thread.sleep(TEMPO_ESPERA_COMPUTADOR);
+                    tratarAcaoEspecialComputador(-2, -2); // Computador sempre tenta capturar
+                }
+            } else {
+                super.notificarObservadores("MENSAGEM", "Computador não encontrou células não exploradas.");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     public void salvarJogo(String filePath) {
@@ -268,9 +368,10 @@ public class MotorJogo extends Observado implements Serializable {
             this.jogador = jogoCarregado.jogador;
             this.computador = jogoCarregado.computador;
             this.turno = jogoCarregado.turno;
-            this.random = jogoCarregado.random; // Garante que o Random seja restaurado
+            this.random = jogoCarregado.random;
+            this.aguardandoAcaoJogador = false;
+            this.pokemonSelvagemEncontrado = null;
 
-            // Reinicializa o executor de threads após a desserialização
             if (this.executorService != null) {
                 this.executorService.shutdownNow();
             }
@@ -285,22 +386,6 @@ public class MotorJogo extends Observado implements Serializable {
         }
     }
 
-    private void atualizarTabuleiroUI() {
-        for (int i = 0; i < TAMANHO_GRID; i++) {
-            for (int j = 0; j < TAMANHO_GRID; j++) {
-                if (!tabuleiro[i][j].estaVazia()) {
-                    super.notificarObservadores("POKEMON_ENCONTRADO", new int[]{i, j});
-                } else if (tabuleiro[i][j].foiVisitada()) {
-                    super.notificarObservadores("CELULA_VAZIA", new int[]{i, j});
-                } else {
-                    // Célula não visitada e vazia, garantir que não tenha imagem
-                    super.notificarObservadores("CELULA_VAZIA", new int[]{i, j}); // Reutiliza o evento para limpar a célula
-                }
-            }
-        }
-    }
-
-    // Garante que o executor de threads seja desligado ao finalizar o jogo
     public void shutdown() {
         if (executorService != null) {
             executorService.shutdown();

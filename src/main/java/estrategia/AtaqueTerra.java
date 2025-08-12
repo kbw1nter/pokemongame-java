@@ -9,8 +9,13 @@ public class AtaqueTerra implements IAtaque, Serializable {
 
     @Override
     public int calcularDano(Pokemon atacante, Pokemon defensor) {
-        double fatorTipo = defensor.getTipo().equals("Elétrico") ? 0.5 : 1.0;
         int danoBase = (atacante.getForca() + new Random().nextInt(atacante.getNivel() + 1));
-        return (int) (danoBase * fatorTipo);
+        
+        // Vantagem contra Elétrico
+        if (defensor.getTipo().equals("Elétrico")) {
+            danoBase *= 1.5;
+        }
+        
+        return danoBase;
     }
 }

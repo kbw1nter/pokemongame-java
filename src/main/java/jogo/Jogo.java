@@ -2,14 +2,20 @@ package jogo;
 
 import estrategia.AtaqueAgua;
 import estrategia.AtaqueFloresta;
+import javax.swing.SwingUtilities;
 import modelo.Pokemon;
 import modelo.PokemonAgua;
 import modelo.PokemonFloresta;
 import modelo.Treinador;
+import ui.JanelaPrincipal;
 
 public class Jogo {
     public static void main(String[] args) {
         // exemplo de como as classes podem interagir
+        
+        SwingUtilities.invokeLater(() -> {
+        JanelaPrincipal janela = new JanelaPrincipal();
+        });
         Treinador jogador = new Treinador("Ash");
         Treinador computador = new Treinador("Gary");
 
