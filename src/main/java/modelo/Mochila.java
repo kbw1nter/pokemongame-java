@@ -43,14 +43,6 @@ public class Mochila implements Serializable {
     }
 
     // Remove um Pokémon específico da mochila
-    public boolean removerPokemon(Pokemon pokemon) {
-        if (pokemonsCapturados.remove(pokemon)) {
-            System.out.println(pokemon.getNome() + " foi removido da mochila.");
-            return true;
-        }
-        System.out.println("Pokémon não encontrado na mochila!");
-        return false;
-    }
 
     // Transfere um Pokémon da mochila para o time ativo
     public boolean transferirParaTime(int indiceMochila) {
@@ -190,4 +182,37 @@ public class Mochila implements Serializable {
     public String getStatus() {
         return "Mochila: " + pokemonsCapturados.size() + "/" + CAPACIDADE_MAXIMA + " Pokémons";
     }
+    
+    /**
+ * Remove um Pokémon específico da mochila
+ * @param pokemon O Pokémon a ser removido
+ * @return true se o Pokémon foi removido com sucesso
+ */
+public boolean removerPokemon(Pokemon pokemon) {
+    return pokemonsCapturados.remove(pokemon);
+}
+/**
+ * Transfere um Pokémon específico da mochila para o time ativo
+ * @param pokemon O Pokémon a ser transferido
+ * @return true se a transferência foi bem-sucedida
+ */
+public boolean transferirPokemonEspecificoParaTime(Pokemon pokemon) {
+    if (pokemonsCapturados.contains(pokemon)) {
+        pokemonsCapturados.remove(pokemon);
+        // Assumindo que há uma referência ao treinador dono
+        // Ajuste conforme a estrutura real da sua classe
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Verifica se um Pokémon específico está na mochila
+ * @param pokemon O Pokémon a ser procurado
+ * @return true se o Pokémon está na mochila
+ */
+public boolean contemPokemon(Pokemon pokemon) {
+    return pokemonsCapturados.contains(pokemon);
+}
+
 }

@@ -392,4 +392,42 @@ public class Treinador implements Serializable {
                (pokemonAtual != null ? pokemonAtual.getNome() + " (HP: " + pokemonAtual.getEnergia() + ")" : "Nenhum") +
                " | Time: " + time.size() + "/6 | Mochila: " + mochila.getQuantidade() + "/" + mochila.getCapacidadeMaxima();
     }
+    
+    /**
+ * Remove um Pokémon específico do time ativo do treinador
+ * @param pokemon O Pokémon a ser removido
+ * @return true se o Pokémon foi removido com sucesso
+ */
+public boolean removerPokemon(Pokemon pokemon) {
+    boolean removido = time.remove(pokemon);
+    
+    // Se o Pokémon removido era o atual, define um novo Pokémon atual
+    if (removido && pokemonAtual == pokemon) {
+        if (!time.isEmpty()) {
+            pokemonAtual = time.get(0);
+        } else {
+            pokemonAtual = null;
+        }
+    }
+    
+    return removido;
+}
+
+public void definirNovoPokemonAtual() {
+    if (!time.isEmpty()) {
+        pokemonAtual = time.get(0);
+    } else {
+        pokemonAtual = null;
+    }
+}
+
+/**
+ * Verifica se o treinador tem Pokémons disponíveis para batalha
+ * @return true se tem pelo menos um Pokémon ativo
+ */
+public boolean temPokemonsDisponiveis() {
+    return !time.isEmpty();
+}
+
+
 }
