@@ -19,6 +19,11 @@ public class Treinador implements Serializable {
         this.pontuacao = 0;
         this.pokemonAtual = null;
     }
+    
+public boolean temNoTimeAtivo(Pokemon pokemon) {
+    return time.contains(pokemon);
+}
+
 
     // Método principal para capturar Pokémons
     public boolean capturarPokemon(Pokemon pokemon) {
