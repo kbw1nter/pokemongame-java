@@ -32,9 +32,10 @@ public class JanelaPrincipal extends JFrame implements Observador {
     private JLabel lblStatusBatalha;
     private Pokemon pokemonAliado;
     private Pokemon pokemonInimigo;
-private JButton btnDica;
-private int celulaSelecionadaX = -1;
-private int celulaSelecionadaY = -1;
+    private JButton btnDica;
+    private int celulaSelecionadaX = -1;
+    private int celulaSelecionadaY = -1;
+    private boolean aguardandoEscolhaDica = false;
 
 
     public JanelaPrincipal() {
@@ -47,7 +48,6 @@ private int celulaSelecionadaY = -1;
         motorJogo.adicionarObservador(this);
 
         criarComponentes();
-        configurarCliqueCelulas(); // Adicione esta linha
         motorJogo.iniciarNovoJogo();
         
         pack();
@@ -67,18 +67,26 @@ private void criarComponentes() {
     botoesGrid = new JButton[MotorJogo.TAMANHO_GRID][MotorJogo.TAMANHO_GRID];
 
     for (int i = 0; i < MotorJogo.TAMANHO_GRID; i++) {
-        for (int j = 0; j < MotorJogo.TAMANHO_GRID; j++) {
-            JButton botao = new JButton();
-            botao.setPreferredSize(new Dimension(100, 100));
-            botao.setFont(new Font("Arial", Font.BOLD, 10));
-            botao.setFocusPainted(false);
-            final int x = i;
-            final int y = j;
-            botao.addActionListener(e -> motorJogo.jogar(x, y));
-            botoesGrid[i][j] = botao;
-            painelTabuleiro.add(botao);
-        }
+    for (int j = 0; j < MotorJogo.TAMANHO_GRID; j++) {
+        JButton botao = new JButton();
+        botao.setPreferredSize(new Dimension(100, 100));
+        botao.setFont(new Font("Arial", Font.BOLD, 10));
+        botao.setFocusPainted(false);
+        final int x = i;
+        final int y = j;
+        botao.addActionListener(e -> {
+            if (aguardandoEscolhaDica) {
+                // Modo dica ativo - processa dica
+                processarEscolhaDica(x, y);
+            } else {
+                // Jogada normal
+                motorJogo.jogar(x, y);
+            }
+        });
+        botoesGrid[i][j] = botao;
+        painelTabuleiro.add(botao);
     }
+}
     add(painelTabuleiro, BorderLayout.CENTER);
 
     // Painel Direito (Status e Log)
@@ -141,9 +149,9 @@ private void criarComponentes() {
     btnDica = new JButton("💡Dica (3)");
     btnDica.setBackground(new Color(255, 215, 0)); // Cor dourada
     btnDica.setFont(new Font("Arial", Font.BOLD, 12));
-    btnDica.addActionListener(e -> usarDica());
-    btnDica.setEnabled(false);
-    btnDica.setToolTipText("Obter dica sobre Pokémon na linha/coluna (máx. 3 por jogo)");
+    btnDica.addActionListener(e -> ativarModoDica()); // MUDANÇA AQUI
+    btnDica.setEnabled(true); // SEMPRE HABILITADO (mudança)
+    btnDica.setToolTipText("Clique aqui e depois escolha uma célula para obter dica (máx. 3 por jogo)");
     
     // Botão Carregar
     JButton btnCarregar = new JButton("Carregar Jogo"); 
@@ -520,13 +528,16 @@ public void atualizar(String evento, Object dados) {
     }
     break;
                case "DICA_USADA":
-                int dicasRestantes = (Integer) dados;
-                btnDica.setText("💡 Dica (" + dicasRestantes + ")");
-                if (dicasRestantes <= 0) {
-                    btnDica.setEnabled(false);
-                    btnDica.setBackground(Color.LIGHT_GRAY);
-                }
-                break;
+    int dicasRestantes = (Integer) dados;
+    btnDica.setText("💡 Dica (" + dicasRestantes + ")");
+    btnDica.setToolTipText("Clique aqui e depois escolha uma célula para obter dica (máx. " + dicasRestantes + " por jogo)");
+    if (dicasRestantes <= 0) {
+        btnDica.setEnabled(false);
+        btnDica.setBackground(Color.LIGHT_GRAY);
+        btnDica.setText("💡 Sem Dicas");
+        btnDica.setToolTipText("Você usou todas as suas dicas!");
+    }
+    break;
                 
             case "CELULA_VAZIA":
                 int[] coordsVazia = (int[]) dados;
@@ -1234,24 +1245,72 @@ private void encerrarBatalha(Pokemon vencedor) {
         // Adiciona efeito visual de dano
         adicionarEfeitoVisualDano(barraParaAtualizar, dano);
         
-        // Atualiza o log com mais detalhes
+        // Verifica se o atacante é do tipo Floresta para mostrar regeneração
+        String mensagemCompleta = nomeAtacante + " atacou " + nomeDefensor + " causando " + dano + " de dano!";
+        
+        // Verifica se o atacante regenerou vida (assumindo que Pokémons Floresta regeneram ao atacar)
+        Pokemon pokemonAtacante = null;
+        String nomeAtacanteNormalizado = nomeAtacante.trim().toLowerCase();
+        
+        if (pokemonAliado != null && pokemonAliado.getNome().trim().toLowerCase().equals(nomeAtacanteNormalizado)) {
+            pokemonAtacante = pokemonAliado;
+        } else if (pokemonInimigo != null && pokemonInimigo.getNome().trim().toLowerCase().equals(nomeAtacanteNormalizado)) {
+            pokemonAtacante = pokemonInimigo;
+        }
+        
+        // Se o atacante é tipo Floresta, adiciona info de regeneração
+        if (pokemonAtacante != null && pokemonAtacante.getTipo() != null && 
+            pokemonAtacante.getTipo().toString().toLowerCase().contains("floresta")) {
+            
+            // Calcula a regeneração (assumindo 10% do dano causado como padrão)
+            int regeneracao = Math.max(1, (int)(dano * 0.1));
+            mensagemCompleta += " 🌱" + nomeAtacante + " regenerou " + regeneracao + " HP!";
+            
+            // Aplica efeito visual de regeneração na barra do atacante
+            JProgressBar barraAtacante = null;
+            if (pokemonAtacante == pokemonAliado) {
+                barraAtacante = barraHPAliado;
+            } else if (pokemonAtacante == pokemonInimigo) {
+                barraAtacante = barraHPInimigo;
+            }
+            
+            if (barraAtacante != null) {
+                final JProgressBar barraFinal = barraAtacante;
+                final Pokemon pokemonFinal = pokemonAtacante;
+                
+                // Simula o efeito visual de regeneração
+                Timer regenTimer = new Timer(500, e -> {
+                    adicionarEfeitoVisualCura(barraFinal, regeneracao);
+                    // Atualiza a barra do atacante para mostrar a regeneração
+                    int energiaAtualAtacante = pokemonFinal.getEnergia();
+                    barraFinal.setValue(energiaAtualAtacante);
+                    barraFinal.setString("HP: " + energiaAtualAtacante + "/" + pokemonFinal.getEnergiaMaxima());
+                    barraFinal.setForeground(getCorBarraHP(energiaAtualAtacante, pokemonFinal.getEnergiaMaxima()));
+                });
+                regenTimer.setRepeats(false);
+                regenTimer.start();
+            }
+        }
+        
+        // Atualiza o status na tela de batalha com a mensagem completa
         String statusHP = " (" + energiaAnterior + " → " + energiaAtual + " HP)";
         String efeitoDesc = "";
         
         if (dano > pokemonDefensor.getEnergiaMaxima() * 0.3) {
             efeitoDesc = " 💥SUPER EFETIVO!";
         } else if (dano < pokemonDefensor.getEnergiaMaxima() * 0.1) {
-            efeitoDesc = "️ Pouco efetivo...";
+            efeitoDesc = " Pouco efetivo...";
         }
         
-        areaLog.append(nomeAtacante + " atacou " + nomeDefensor + " causando " + dano + " de dano!" + 
-                      efeitoDesc + statusHP + "\n");
+        // Adiciona tudo no log
+        areaLog.append(mensagemCompleta + efeitoDesc + statusHP + "\n");
         areaLog.setCaretPosition(areaLog.getDocument().getLength());
         
         // Atualiza status na tela de batalha
         if (lblStatusBatalha != null) {
-            lblStatusBatalha.setText("💢 " + nomeAtacante + " causou " + dano + " de dano em " + nomeDefensor + "!");
+            lblStatusBatalha.setText("💢 " + mensagemCompleta);
         }
+        
     } else {
         areaLog.append("[ERRO] Não foi possível atualizar a barra de HP para " + nomeDefensor + "\n");
         areaLog.setCaretPosition(areaLog.getDocument().getLength());
@@ -1393,7 +1452,9 @@ private void removerDestaqueCelulas() {
             java.awt.event.MouseListener[] listeners = botao.getMouseListeners();
             for (java.awt.event.MouseListener listener : listeners) {
                 String listenerStr = listener.toString();
-                if (listenerStr.contains("posicionamento") || listenerStr.contains("$")) {
+                if (listenerStr.contains("posicionamento") || 
+                    listenerStr.contains("dica_hover") || 
+                    listenerStr.contains("$")) {
                     botao.removeMouseListener(listener);
                 }
             }
@@ -1405,22 +1466,21 @@ private void removerDestaqueCelulas() {
             // Aplica cor da região
             aplicarCorRegiao(botao, i, j);
             
-            // IMPORTANTE: Remove qualquer ícone ou texto que possa ter sido adicionado durante o posicionamento
+            // Remove qualquer ícone ou texto que possa ter sido adicionado
             botao.setIcon(null);
             botao.setText("");
             botao.setEnabled(true);
         }
     }
     
-    // Força atualização do tabuleiro, mas sem revelar Pokémons ocultos
+    // Força atualização do tabuleiro
     if (!modoDebug) {
-        // Em modo normal, aplica apenas as cores das regiões
         aplicarCoresRegioes();
     } else {
-        // Em modo debug, mostra tudo
         revelarMapa();
     }
 }
+
 
 private void mostrarStatusPosicionamento() {
     if (motorJogo.getTurno() == 0) {
@@ -1450,47 +1510,11 @@ private void mostrarStatusPosicionamento() {
     }
 }
 private void adicionarEfeitoVisualDano(JProgressBar barra, int dano) {
-    // Cria um label temporário mostrando o dano
-    JLabel lblDano = new JLabel("-" + dano, JLabel.CENTER);
-    lblDano.setFont(new Font("Arial", Font.BOLD, 16));
-    lblDano.setForeground(Color.RED);
-    lblDano.setBorder(BorderFactory.createLineBorder(Color.BLACK, 1));
-    lblDano.setOpaque(true);
-    lblDano.setBackground(new Color(255, 255, 255, 200)); // Fundo semi-transparente
-    
-    // Adiciona o label sobre a barra temporariamente
-    if (barra.getParent() != null) {
-        JPanel container = (JPanel) barra.getParent();
-        container.setComponentZOrder(lblDano, 0);
-        container.add(lblDano);
-        
-        // Anima o label subindo e desaparecendo
-        Timer efeitoTimer = new Timer(50, null);
-        efeitoTimer.addActionListener(new ActionListener() {
-            private int contador = 0;
-            private int posicaoY = lblDano.getY();
-            
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                contador++;
-                
-                // Move o label para cima
-                lblDano.setLocation(lblDano.getX(), posicaoY - contador * 2);
-                
-                // Fade out
-                float alpha = Math.max(0f, 1f - (contador / 30f));
-                lblDano.setForeground(new Color(255, 0, 0, (int)(255 * alpha)));
-                
-                if (contador >= 30) {
-                    container.remove(lblDano);
-                    container.repaint();
-                    efeitoTimer.stop();
-                }
-            }
-        });
-        efeitoTimer.start();
-    }
+    // Método desabilitado - apenas atualiza a barra normalmente
+    // Sem efeitos visuais extras
+    return;
 }
+
 private void adicionarEfeitoKnockout(JProgressBar barra) {
     // Efeito de "knockout" - barra pisca e fica cinza
     Timer koTimer = new Timer(200, null);
@@ -1629,34 +1653,103 @@ private void adicionarEfeitoVisualCura(JProgressBar barra, int quantidadeCurada)
     }
 }
 
-private void configurarCliqueCelulas() {
+private void ativarModoDica() {
+    if (motorJogo.getDicasDisponiveis() <= 0) {
+        JOptionPane.showMessageDialog(this, "Você não tem mais dicas disponíveis!", "Sem Dicas", JOptionPane.WARNING_MESSAGE);
+        return;
+    }
+    
+    aguardandoEscolhaDica = true;
+    
+    // Muda a aparência do botão para indicar que está ativo
+    btnDica.setText("🎯 Escolha uma célula!");
+    btnDica.setBackground(new Color(255, 100, 100)); // Vermelho para chamar atenção
+    btnDica.setToolTipText("Clique em uma célula para obter a dica");
+    
+    // Destaca as células disponíveis para dica
+    destacarCelulasParaDica();
+    
+    // Mostra instrução
+    mostrarInstrucao("🎯 CLIQUE EM UMA CÉLULA PARA OBTER DICA SOBRE LINHA/COLUNA");
+    
+    areaLog.append("💡 Modo dica ativado! Clique em uma célula para obter informações.\n");
+    areaLog.setCaretPosition(areaLog.getDocument().getLength());
+}
+
+/**
+ * Processa a escolha da célula para dica
+ */
+private void processarEscolhaDica(int x, int y) {
+    if (!aguardandoEscolhaDica) return;
+    
+    // Desativa o modo dica
+    aguardandoEscolhaDica = false;
+    
+    // Restaura aparência do botão
+    int dicasRestantes = motorJogo.getDicasDisponiveis();
+    btnDica.setText("💡 Dica (" + dicasRestantes + ")");
+    btnDica.setBackground(new Color(255, 215, 0)); // Volta ao dourado
+    btnDica.setToolTipText("Clique aqui e depois escolha uma célula para obter dica (máx. " + dicasRestantes + " por jogo)");
+    
+    // Remove destaques
+    removerDestaqueCelulas();
+    
+    // Limpa instrução
+    limparInstrucao();
+    
+    // Obtém e mostra a dica
+    String dica = motorJogo.obterDica(x, y);
+    JOptionPane.showMessageDialog(this, 
+        "Dica para posição (" + x + ", " + y + "):\n\n" + dica, 
+        "💡 Dica Revelada", 
+        JOptionPane.INFORMATION_MESSAGE);
+    
+    areaLog.append("💡 Dica usada para posição (" + x + ", " + y + ")\n");
+    areaLog.setCaretPosition(areaLog.getDocument().getLength());
+}
+private void destacarCelulasParaDica() {
     for (int i = 0; i < MotorJogo.TAMANHO_GRID; i++) {
         for (int j = 0; j < MotorJogo.TAMANHO_GRID; j++) {
-            final int x = i;
-            final int y = j;
-            botoesGrid[i][j].addActionListener(e -> {
-                celulaSelecionadaX = x;
-                celulaSelecionadaY = y;
-                btnDica.setEnabled(true);
+            JButton botao = botoesGrid[i][j];
+            
+            // Adiciona borda dourada piscante para indicar que pode receber dica
+            botao.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(255, 215, 0), 2), // Dourado
+                BorderFactory.createRaisedBevelBorder()
+            ));
+            
+            botao.setToolTipText("🎯 Clique aqui para obter dica sobre linha " + i + " e coluna " + j);
+            
+            // Adiciona efeito hover específico para dicas
+            botao.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseEntered(java.awt.event.MouseEvent evt) {
+                    if (aguardandoEscolhaDica) {
+                        botao.setBorder(BorderFactory.createCompoundBorder(
+                            BorderFactory.createLineBorder(new Color(255, 165, 0), 3), // Laranja brilhante
+                            BorderFactory.createRaisedBevelBorder()
+                        ));
+                    }
+                }
+                
+                @Override
+                public void mouseExited(java.awt.event.MouseEvent evt) {
+                    if (aguardandoEscolhaDica) {
+                        botao.setBorder(BorderFactory.createCompoundBorder(
+                            BorderFactory.createLineBorder(new Color(255, 215, 0), 2), // Volta ao dourado
+                            BorderFactory.createRaisedBevelBorder()
+                        ));
+                    }
+                }
+                
+                @Override
+                public String toString() {
+                    return "dica_hover_listener";
+                }
             });
         }
     }
 }
-private void usarDica() {
-    if (celulaSelecionadaX == -1 || celulaSelecionadaY == -1) {
-        JOptionPane.showMessageDialog(this, "Selecione uma célula primeiro!", "Erro", JOptionPane.WARNING_MESSAGE);
-        return;
-    }
-    
-    String dica = motorJogo.obterDica(celulaSelecionadaX, celulaSelecionadaY);
-    JOptionPane.showMessageDialog(this, dica, "Dica", JOptionPane.INFORMATION_MESSAGE);
-    
-    // Desmarca a célula selecionada após usar a dica
-    celulaSelecionadaX = -1;
-    celulaSelecionadaY = -1;
-    btnDica.setEnabled(false);
-}
-
 
 
 }
